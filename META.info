@@ -1,0 +1,11 @@
+{
+    "name" : "Net::Ftp",
+    "version" : "0.1.0",
+    "description" : "a ftp client written in perl6",
+    "author" : "loren",
+    "provides" : {
+        "Net::Ftp" : "lib/Net/Ftp.pm"
+    },
+    "depends" : [],
+    "source-url" : "git://github.com/araraloren/Net-Ftp.git"
+}
