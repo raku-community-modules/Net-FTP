@@ -6,7 +6,6 @@ use Net::Ftp;
 
 plan 7;
 
-##013.3vftp.com is a ftp service
 ##mirrors.sohu.com is a anonymous ftp service 
 
 my $ftp = Net::Ftp.new(:host('mirrors.sohu.com'));

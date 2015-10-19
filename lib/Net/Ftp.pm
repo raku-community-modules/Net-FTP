@@ -27,7 +27,10 @@ method new (*%args is copy) {
 }
 
 method login(:$account = "") {
-	self!connect();
+	$!ftpc = self!connect($!host, $!port, $!family);
+	unless $!ftpc {
+		return FTP::OK;
+	}
 	if self!welcome() {
 		self!authenticate($account);
 	} else {
@@ -93,8 +96,30 @@ method pwd() {
 	return '';
 }
 
+# cause of perl6's getsockname not implement, you need
+# pass a port to method
+method port(Int $port?) {
+	return if $!pasv;
+    if ($port.defined) {
+		#OS::gethost not implement now ..
+    } else {
+    	return FTP::FAIL;
+    }
+}
+
 method pasv() {
-	$!pasv = False;
+# 227 ok
+# 500|501|502|530 error
+	self!sendcmd1('PASV');
+	self!respone();
+	if ($!msg ~~ /(\d+\,\d+\,\d+\,\d+)\,(\d+)\,(\d+)/) {
+		$!ftpd = self!connect($0.split(',').join('.'), 
+							~$1 * 256 + ~$2, $!family);
+		if $!ftpd {
+			return FTP::OK;
+		}
+	}
+	return FTP::FAIL;
 }
 
 method res() {
@@ -105,14 +130,11 @@ method msg() {
 	~$!msg;
 }
 
-method !connect() {
-	$!ftpc = IO::Socket::INET.new(
-							:host($!host),
-							:port($!port), 
-							:family($!family),
-						);
+method !connect($h, $p, $f) {
+	IO::Socket::INET.new(:host($h),
+						 :port($p), 
+						 :family($f));
 }
-
 
 method !welcome() {
 # 220 ok
@@ -193,7 +215,8 @@ method !dispatch() {
 			 230 | 332 | 331 | 202 |
 			 221 |
 			 250 | 200 |
-			 257 {
+			 257 |
+			 227 {
 			return FTP::OK;
 		}
 		# 120 is not a error
