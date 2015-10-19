@@ -116,6 +116,7 @@ method pasv() {
 		$!ftpd = self!connect($0.split(',').join('.'), 
 							~$1 * 256 + ~$2, $!family);
 		if $!ftpd {
+			$!pasv = True;
 			return FTP::OK;
 		}
 	}
