@@ -2,10 +2,12 @@ use v6;
 
 unit class Net::Ftp;
 
-my enum FTP (
+enum FTP is export (
 	:FAIL<0>,
 	:OK<1>,
 );
+
+enum TYPE is export < Ascii Image >;
 
 has $!ftpc;
 has $!ftpd;
@@ -19,8 +21,8 @@ has Str $.user = "";
 has Str $.pass = "";
 
 has Bool $.debug = False;
-has Bool $.pasv = False; 
-
+has Bool $.pasv = False;
+has Bool $.ascii = True;
 
 method new (*%args is copy) {
 	self.bless(|%args);
@@ -77,9 +79,7 @@ method quit() {
 		return FTP::FAIL;
 	}
 # close socket
-	$!ftpc.close() if $!ftpc;
-	$!ftpd.close() if $!ftpd;
-	
+	$!ftpc.close() if $!ftpc.defined;
 	return FTP::OK;
 }
 
@@ -99,7 +99,9 @@ method pwd() {
 # cause of perl6's getsockname not implement, you need
 # pass a port to method
 method port(Int $port?) {
-	return if $!pasv;
+# server does not connect to us immediately
+	return FTP::FAIL if $!pasv;
+	$!pasv = False;
     if ($port.defined) {
 		#OS::gethost not implement now ..
     } else {
@@ -108,19 +110,77 @@ method port(Int $port?) {
 }
 
 method pasv() {
-# 227 ok
-# 500|501|502|530 error
-	self!sendcmd1('PASV');
-	self!respone();
-	if ($!msg ~~ /(\d+\,\d+\,\d+\,\d+)\,(\d+)\,(\d+)/) {
-		$!ftpd = self!connect($0.split(',').join('.'), 
-							~$1 * 256 + ~$2, $!family);
-		if $!ftpd {
-			$!pasv = True;
-			return FTP::OK;
+	$!pasv = True; 
+}
+
+method type(TYPE $t) {
+	given $t {
+		when TYPE::Ascii {
+			unless $!ascii {
+				self!sendcmd2('TYPE', 'A');
+				$!ascii = True;
+				unless self!handlecmd() {
+					return FTP::FAIL;
+				}
+			}
+		}
+		when TYPE::Image {
+			if $!ascii {
+				self!sendcmd2('TYPE', 'I');
+				$!ascii = False;
+				unless self!handlecmd() {
+					return FTP::FAIL;
+				}
+			}
 		}
 	}
-	return FTP::FAIL;
+	
+	return FTP::OK;
+}
+
+method rest($pos) {
+	self!sendcmd2('REST', ~$pos);
+	unless self!handlecmd() {
+		return FTP::FAIL;
+	}
+	return FTP::OK;
+}
+
+method list($path?) {
+	if $!pasv {
+		self!pasv_connect();
+	} else {
+		self!port_connect();
+	}
+	if $path.defined {
+		self!sendcmd2('LIST', ~$path);
+	} else {
+		self!sendcmd1('LIST');
+	}
+	if self!handlecmd() & self!handlecmd() {
+		self!readlist();
+		$!ftpd.close() if $!ftpd;
+		return FTP::OK;
+	} else {
+		$!ftpd.close() if $!ftpd;
+		return FTP::FAIL;
+	}
+}
+
+method ls($path?) {
+	if $path.defined {
+		self.list($path);
+	} else {
+		self.list();
+	}
+}
+
+method dir($path?) {
+	if $path.defined {
+		self.list($path);
+	} else {
+		self.list();
+	}
 }
 
 method res() {
@@ -129,6 +189,33 @@ method res() {
 
 method msg() {
 	~$!msg;
+}
+
+method !readlist() {
+	while (my $buf = $!ftpd.get()) {
+		say $buf;
+		#go on
+	}
+}
+
+method !pasv_connect() {
+# 227 ok
+# 500|501|502|530 error
+	self!sendcmd1('PASV');
+	self!respone();
+	if ($!msg ~~ /(\d+\,\d+\,\d+\,\d+)\,(\d+)\,(\d+)/) {
+		$!ftpd = self!connect($0.split(',').join('.'), 
+							~$1 * 256 + ~$2, $!family);
+		unless $!ftpd {
+			return FTP::FAIL;
+		}
+		return FTP::OK;
+	}
+	return FTP::FAIL;
+}
+
+method !port_connect() {
+	#
 }
 
 method !connect($h, $p, $f) {
@@ -190,16 +277,16 @@ method !respone() {
 	
 	note ~$line if $!debug;
 	
-	if ($line ~~ /(\d+)\s(.*)/) {
+	if ($line ~~ /^(\d+)\s(.*)/) {
 		($!res, $!msg) = ($0, $1);
-	} elsif ($line ~~ /(\d+)\-(.*)/) {
+	} elsif ($line ~~ /^(\d+)\-(.*)/) {
 		my ($res, $msg) = ($0, $1);
 		
 		loop {
 			$line = $!ftpc.get();
 			
-			if ($line ~~ /$res\s(.*)/) {
-				($!res, $!msg) = ($res, $msg ~ $1);
+			if ($line ~~ /^$res\s(.*)/) {
+				($!res, $!msg) = ($res, $msg ~ $0);
 				last;
 			} else {
 				$msg = $msg ~ $line;
@@ -217,14 +304,18 @@ method !dispatch() {
 			 221 |
 			 250 | 200 |
 			 257 |
-			 227 {
+			 227 |
+			 350 |
+			 150 | 125 | 226 {
 			return FTP::OK;
 		}
 		# 120 is not a error
 		# 421 service closing ftpc
 		when 120 | 421 |
 			 530 | 500 | 501 | 503 | 421 |
-			 502 | 550 {
+			 502 | 550 |
+			 504 |
+			 425 | 426 | 451 | 450 {
 			return FTP::FAIL;
 		}
 	}
@@ -244,3 +335,5 @@ method !exit(Str $err_msg) {
 	exit;
 }
 
+#NOT IMPLEMENT
+# STRU MODE ALLO [TIMEOUT]
