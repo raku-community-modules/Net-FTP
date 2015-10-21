@@ -7,7 +7,9 @@ enum FTP is export (
 	:OK<1>,
 );
 
-enum TYPE is export < Ascii Image >;
+enum TYPE is export < A I >;
+
+enum FILE is export < NORMAL DIR LINK SOCKET PIPE CHAR BLOCK >
 
 has $!ftpc;
 has $!ftpd;
@@ -115,7 +117,7 @@ method pasv() {
 
 method type(TYPE $t) {
 	given $t {
-		when TYPE::Ascii {
+		when TYPE::A {
 			unless $!ascii {
 				self!sendcmd2('TYPE', 'A');
 				$!ascii = True;
@@ -124,7 +126,7 @@ method type(TYPE $t) {
 				}
 			}
 		}
-		when TYPE::Image {
+		when TYPE::I {
 			if $!ascii {
 				self!sendcmd2('TYPE', 'I');
 				$!ascii = False;
@@ -333,6 +335,37 @@ method !sendcmd1($cmd) {
 method !exit(Str $err_msg) {
 	say $err_msg;
 	exit;
+}
+
+method !eplf(Str $str is copy is rw) {
+	my %info;
+
+	if $str ~~ s/\,\s+(.*)$// {
+		%info<name> = ~$0;
+	}
+	$str ~~ s/^\+//;
+
+	my @col = $str.split(',');
+
+	for @col {
+		if /i(.*)/ {
+			%info<id> = ~$0;
+		} elsif /\// {
+			%info<file> = TYPE::DIR;
+		} elsif /r/ {
+			%info<file> = TYPE::NORMAL;
+		} elsif /s(\d+)/ {
+			%info<size> = +$0;
+		} elsif /m(\d+)/ {
+			%info<time> = +$0;
+		}
+		# seems like fmode have not use 
+		# `(elsif /up(\d+)/ {
+			%info<mode> = ~$0;
+		})
+	}
+	
+	%info;
 }
 
 #NOT IMPLEMENT
