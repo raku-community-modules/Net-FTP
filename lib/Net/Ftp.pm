@@ -9,7 +9,7 @@ enum FTP is export (
 
 enum TYPE is export < A I >;
 
-enum FILE is export < NORMAL DIR LINK SOCKET PIPE CHAR BLOCK >
+enum FILE is export < NORMAL DIR LINK SOCKET PIPE CHAR BLOCK >;
 
 has $!ftpc;
 has $!ftpd;
@@ -279,9 +279,9 @@ method !respone() {
 	
 	note ~$line if $!debug;
 	
-	if ($line ~~ /^(\d+)\s(.*)/) {
+	if ($line ~~ /^(\d ** 3)\s(.*)/) {
 		($!res, $!msg) = ($0, $1);
-	} elsif ($line ~~ /^(\d+)\-(.*)/) {
+	} elsif ($line ~~ /^(\d ** 3)\-(.*)/) {
 		my ($res, $msg) = ($0, $1);
 		
 		loop {
@@ -351,18 +351,130 @@ method !eplf(Str $str is copy is rw) {
 		if /i(.*)/ {
 			%info<id> = ~$0;
 		} elsif /\// {
-			%info<file> = TYPE::DIR;
+			%info<type> = FILE::DIR;
 		} elsif /r/ {
-			%info<file> = TYPE::NORMAL;
+			%info<type> = FILE::NORMAL;
 		} elsif /s(\d+)/ {
 			%info<size> = +$0;
 		} elsif /m(\d+)/ {
 			%info<time> = +$0;
 		}
 		# seems like fmode have not use 
-		# `(elsif /up(\d+)/ {
-			%info<mode> = ~$0;
-		})
+		#(elsif /up(\d+)/ {
+		#	%info<mode> = ~$0;
+		#})
+	}
+	
+	%info;
+}
+
+method !gettype($type) {
+	given $type {
+		when '-' {
+			return FILE::NORMAL;
+		}
+		when 'd' {
+			return FILE::DIR;
+		}
+		when 'l' {
+			return FILE::LINK;
+		}
+		when 's' {
+			return FILE::SOCKET;
+		}
+		when 'p' {
+			return FILE::PIPE;
+		}
+		when 'c' {
+			return FILE::CHAR;
+		}
+		when 'b' {
+			return FILE::BLOCK;
+		}
+	}
+}
+
+constant @month = (
+	"jan","feb","mar","apr",
+	"may","jun","jul","aug",
+	"sep","oct","nov","dec"
+);
+
+method !getmonth(Str $str) {
+	my $strlc = $str.lc;
+	
+	my $i = 0;
+	
+	for @month {
+		if $strlc eq $_ {
+			return $i;
+		}
+		$i++;
+	}
+	
+	return -1;
+}
+
+method !binls(Str $str is copy is rw) {
+	my %info;
+	
+	if $str ~~ s:s/^([\-|b|c|d|l|p|s])[\-|r|w|x]+\s+// {
+		%info<type> = self!gettype(~$0);
+		if $str ~~ s:s/^[f\S+\s+(\d+)\s+ | \d+\s+\d+\s+(\d+)\s+]// {
+			%info<size> = +$0;
+			if $str ~~ /^(\w+)\s+(\d+)\s+(\d+)\s+(.*)/ {
+				##%info<time> ? getmonth(~$0); $1 = day ;$2 = year;
+				%info<name> = ~$3;
+			}
+		}  else {
+			if $str ~~ s:s/^\d+\s+\S+\s+[(\d+)\s+ |\S+\s+(\d+)\s+]// {
+				%info<size> = +$0;
+				if $str ~~ s:s/^(\w+)\s+(\d+)\s+// {
+					#? getmonth(~$0); $1 = day
+					if $str ~~ /^(\d+)\:(\d+)\s+(.*)/ {
+						#$0 hour $1 minute
+						%info<name> = ~$2;
+					} elsif $str ~~ /^(\d+)\s+(.*)/ {
+						#$0 year
+						%info<name> = ~$1;
+					}	
+				}
+			}
+		}
+	} elsif $str ~~ s:s/^([\-|b|c|d|l|p|s])\s*\[.*\]\s+\S+\s+// {
+		%info<type> = self!gettype(~$0);
+		if $str ~~ /^(\d+)\s+(\w+)\s+(\d+)\s+(\d+)\:(\d+)\s+(.*)/ {
+			%info<size> = +$0;
+			#$1 month $2 day $3 hour $4 minute
+			%info<name> = ~$5; 
+		}
+	}
+	if %info<name>:exists {
+		if %info<name> ~~ /(.*)\s+\-\>\s+(.*)/ {
+			%info<name> = ~$0;
+			%info<link> = ~$1;
+		}
+	}
+	if $str ~~ s:s/^(.*)\.([DIR|.*])\;\S*\s+// {
+		if $1 eq DIR {
+			%info<type> = FILE::DIR;
+			%info<name> = ~$0;
+		} else {
+			%info<type> = FILE::NORMAL;
+			%info<name> = ~$0 ~ '.' ~ $1;
+		}
+		if $str ~~ /^\S+\s+(\d+)\-(\w+)\-(\d+)\s+(\d+)\:(\d+)/ {
+			#$0 day $1 month $2 year $3 hour $4 minute
+		}
+	} elsif $str ~~ /^(\d+)\-(\d+)\-(\d+)\s+(\d+) \: (\d+)([AM|PM])\s+([\<DIR\> | \d+])\s+(.*)/ {
+		#$0 month $1 day $2 year $3 hour $4 minute $5 AM | PM
+		%info<name> = ~$7;
+		if ~$6 eq '<DIR>' {
+			%info<type> = FILE::DIR;
+		} else {
+			%info<size> = +$6;
+			%info<type> = FILE::NORMAL;
+		}
 	}
 	
 	%info;
