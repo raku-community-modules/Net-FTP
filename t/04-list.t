@@ -4,7 +4,7 @@ use Test;
 
 use Net::Ftp;
 
-plan 4;
+plan 6;
 
 ##mirrors.sohu.com is a anonymous ftp service 
 
@@ -15,6 +15,8 @@ my $ftp = Net::Ftp.new(:host('013.3vftp.com'),
 $ftp.login();
 ok($ftp.pasv() == 1, "set pasv mode");
 isnt($ftp.ls(), (), "list file success");
+isnt($ftp.ls("/root/"), (), "list file success");
+isnt($ftp.ls("something.txt"), (), "list file success");
 $ftp.quit();
 
 
