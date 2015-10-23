@@ -11,6 +11,8 @@ enum TYPE is export < A I >;
 
 enum FILE is export < NORMAL DIR LINK SOCKET PIPE CHAR BLOCK >;
 
+has $!SOCKET_CLASS = IO::Socket::INET;
+
 has $!ftpc;
 has $!ftpd;
 has $!res;
@@ -150,7 +152,7 @@ method rest($pos) {
 
 method list($path?) {
 	if $!pasv {
-		self!pasv_connect();
+		self!pasv_connect(:line-separator("\r\n"));
 	} else {
 		self!port_connect();
 	}
@@ -159,14 +161,12 @@ method list($path?) {
 	} else {
 		self!sendcmd1('LIST');
 	}
+	my @res = ();
 	if self!handlecmd() & self!handlecmd() {
-		self!readlist();
-		$!ftpd.close() if $!ftpd;
-		return FTP::OK;
-	} else {
-		$!ftpd.close() if $!ftpd;
-		return FTP::FAIL;
+		@res = self!readlist();	
 	}
+	$!ftpd.close() if $!ftpd;
+	return @res;
 }
 
 method ls($path?) {
@@ -194,20 +194,33 @@ method msg() {
 }
 
 method !readlist() {
+	my @infos;
+
 	while (my $buf = $!ftpd.get()) {
-		say $buf;
-		#go on
-	}
+		note $buf if $!debug;
+		$buf.chomp;
+		if $buf ~~ /^\+/ {
+			push @infos, self!eplf(~$buf);
+		} else {
+			push @infos, self!binls(~$buf);
+		}
+	}	
+	@infos;
 }
 
-method !pasv_connect() {
+method !pasv_connect(:$encoding = 'utf-8', :$line-separator = '\n') {
 # 227 ok
 # 500|501|502|530 error
 	self!sendcmd1('PASV');
 	self!respone();
 	if ($!msg ~~ /(\d+\,\d+\,\d+\,\d+)\,(\d+)\,(\d+)/) {
-		$!ftpd = self!connect($0.split(',').join('.'), 
-							~$1 * 256 + ~$2, $!family);
+		$!ftpd = $!SOCKET_CLASS.new(
+						:host($0.split(',').join('.')), 
+						:port(~$1 * 256 + ~$2),
+						:family($!family),
+						:encoding($encoding),
+						:input-line-separator($line-separator)
+					);
 		unless $!ftpd {
 			return FTP::FAIL;
 		}
@@ -221,7 +234,7 @@ method !port_connect() {
 }
 
 method !connect($h, $p, $f) {
-	IO::Socket::INET.new(:host($h),
+	$!SOCKET_CLASS.new(:host($h),
 						 :port($p), 
 						 :family($f));
 }
@@ -337,7 +350,7 @@ method !exit(Str $err_msg) {
 	exit;
 }
 
-method !eplf(Str $str is copy is rw) {
+method !eplf(Str $str is copy) {
 	my %info;
 
 	if $str ~~ s/\,\s+(.*)$// {
@@ -415,38 +428,32 @@ method !getmonth(Str $str) {
 	return -1;
 }
 
-method !binls(Str $str is copy is rw) {
+method !binls(Str $str is copy) {
 	my %info;
 	
-	if $str ~~ s:s/^([\-|b|c|d|l|p|s])[\-|r|w|x]+\s+// {
+	if $str ~~ /^
+			([\-|b|c|d|l|p|s])
+			[
+				[\-|<.alpha>]+ |
+				\s+\[ [\-|<.alpha>]+ \]  
+			]\s+/ {
 		%info<type> = self!gettype(~$0);
-		if $str ~~ s:s/^[f\S+\s+(\d+)\s+ | \d+\s+\d+\s+(\d+)\s+]// {
-			%info<size> = +$0;
-			if $str ~~ /^(\w+)\s+(\d+)\s+(\d+)\s+(.*)/ {
-				##%info<time> ? getmonth(~$0); $1 = day ;$2 = year;
-				%info<name> = ~$3;
+		if $str ~~ /
+				$<size> = (\d+)\s+
+				$<month> = (<.alpha> ** 3)\s+
+				$<day> = (\d+)\s+
+				[
+					$<year> = (\d ** 4) |
+				 	$<hour> = (\d ** 2) \: $<minute> = (\d ** 2)
+				]\s+
+				$<name> = (.*)$/ {
+			%info<name> = $<name>;
+			%info<size> = $<size>;
+			if $<year>.defined {
+				#get time
+			} else {
+				#get time
 			}
-		}  else {
-			if $str ~~ s:s/^\d+\s+\S+\s+[(\d+)\s+ |\S+\s+(\d+)\s+]// {
-				%info<size> = +$0;
-				if $str ~~ s:s/^(\w+)\s+(\d+)\s+// {
-					#? getmonth(~$0); $1 = day
-					if $str ~~ /^(\d+)\:(\d+)\s+(.*)/ {
-						#$0 hour $1 minute
-						%info<name> = ~$2;
-					} elsif $str ~~ /^(\d+)\s+(.*)/ {
-						#$0 year
-						%info<name> = ~$1;
-					}	
-				}
-			}
-		}
-	} elsif $str ~~ s:s/^([\-|b|c|d|l|p|s])\s*\[.*\]\s+\S+\s+// {
-		%info<type> = self!gettype(~$0);
-		if $str ~~ /^(\d+)\s+(\w+)\s+(\d+)\s+(\d+)\:(\d+)\s+(.*)/ {
-			%info<size> = +$0;
-			#$1 month $2 day $3 hour $4 minute
-			%info<name> = ~$5; 
 		}
 	}
 	if %info<name>:exists {
@@ -463,10 +470,10 @@ method !binls(Str $str is copy is rw) {
 			%info<type> = FILE::NORMAL;
 			%info<name> = ~$0 ~ '.' ~ $1;
 		}
-		if $str ~~ /^\S+\s+(\d+)\-(\w+)\-(\d+)\s+(\d+)\:(\d+)/ {
+		if $str ~~ /^\S+\s+(\d+)\-(\w ** 3)\-(\d ** 4)\s+(\d+)\:(\d+)/ {
 			#$0 day $1 month $2 year $3 hour $4 minute
 		}
-	} elsif $str ~~ /^(\d+)\-(\d+)\-(\d+)\s+(\d+) \: (\d+)([AM|PM])\s+([\<DIR\> | \d+])\s+(.*)/ {
+	} elsif $str ~~ /^(\d+)\-(\d+)\-(\d ** 4)\s+(\d+) \: (\d+)([AM|PM])\s+([\<DIR\> | \d+])\s+(.*)/ {
 		#$0 month $1 day $2 year $3 hour $4 minute $5 AM | PM
 		%info<name> = ~$7;
 		if ~$6 eq '<DIR>' {
