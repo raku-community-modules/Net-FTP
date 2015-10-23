@@ -7,7 +7,11 @@ enum FTP is export (
 	:OK<1>,
 );
 
-enum TYPE is export < Ascii Image >;
+enum TYPE is export < A I >;
+
+enum FILE is export < NORMAL DIR LINK SOCKET PIPE CHAR BLOCK >;
+
+has $!SOCKET_CLASS = IO::Socket::INET;
 
 has $!ftpc;
 has $!ftpd;
@@ -115,7 +119,7 @@ method pasv() {
 
 method type(TYPE $t) {
 	given $t {
-		when TYPE::Ascii {
+		when TYPE::A {
 			unless $!ascii {
 				self!sendcmd2('TYPE', 'A');
 				$!ascii = True;
@@ -124,7 +128,7 @@ method type(TYPE $t) {
 				}
 			}
 		}
-		when TYPE::Image {
+		when TYPE::I {
 			if $!ascii {
 				self!sendcmd2('TYPE', 'I');
 				$!ascii = False;
@@ -148,7 +152,7 @@ method rest($pos) {
 
 method list($path?) {
 	if $!pasv {
-		self!pasv_connect();
+		self!pasv_connect(:line-separator("\r\n"));
 	} else {
 		self!port_connect();
 	}
@@ -157,14 +161,12 @@ method list($path?) {
 	} else {
 		self!sendcmd1('LIST');
 	}
+	my @res = ();
 	if self!handlecmd() & self!handlecmd() {
-		self!readlist();
-		$!ftpd.close() if $!ftpd;
-		return FTP::OK;
-	} else {
-		$!ftpd.close() if $!ftpd;
-		return FTP::FAIL;
+		@res = self!readlist();	
 	}
+	$!ftpd.close() if $!ftpd;
+	return @res;
 }
 
 method ls($path?) {
@@ -192,20 +194,33 @@ method msg() {
 }
 
 method !readlist() {
+	my @infos;
+
 	while (my $buf = $!ftpd.get()) {
-		say $buf;
-		#go on
-	}
+		note $buf if $!debug;
+		$buf.chomp;
+		if $buf ~~ /^\+/ {
+			push @infos, self!eplf(~$buf);
+		} else {
+			push @infos, self!binls(~$buf);
+		}
+	}	
+	@infos;
 }
 
-method !pasv_connect() {
+method !pasv_connect(:$encoding = 'utf-8', :$line-separator = '\n') {
 # 227 ok
 # 500|501|502|530 error
 	self!sendcmd1('PASV');
 	self!respone();
 	if ($!msg ~~ /(\d+\,\d+\,\d+\,\d+)\,(\d+)\,(\d+)/) {
-		$!ftpd = self!connect($0.split(',').join('.'), 
-							~$1 * 256 + ~$2, $!family);
+		$!ftpd = $!SOCKET_CLASS.new(
+						:host($0.split(',').join('.')), 
+						:port(~$1 * 256 + ~$2),
+						:family($!family),
+						:encoding($encoding),
+						:input-line-separator($line-separator)
+					);
 		unless $!ftpd {
 			return FTP::FAIL;
 		}
@@ -219,7 +234,7 @@ method !port_connect() {
 }
 
 method !connect($h, $p, $f) {
-	IO::Socket::INET.new(:host($h),
+	$!SOCKET_CLASS.new(:host($h),
 						 :port($p), 
 						 :family($f));
 }
@@ -277,9 +292,9 @@ method !respone() {
 	
 	note ~$line if $!debug;
 	
-	if ($line ~~ /^(\d+)\s(.*)/) {
+	if ($line ~~ /^(\d ** 3)\s(.*)/) {
 		($!res, $!msg) = ($0, $1);
-	} elsif ($line ~~ /^(\d+)\-(.*)/) {
+	} elsif ($line ~~ /^(\d ** 3)\-(.*)/) {
 		my ($res, $msg) = ($0, $1);
 		
 		loop {
@@ -333,6 +348,143 @@ method !sendcmd1($cmd) {
 method !exit(Str $err_msg) {
 	say $err_msg;
 	exit;
+}
+
+method !eplf(Str $str is copy) {
+	my %info;
+
+	if $str ~~ s/\,\s+(.*)$// {
+		%info<name> = ~$0;
+	}
+	$str ~~ s/^\+//;
+
+	my @col = $str.split(',');
+
+	for @col {
+		if /i(.*)/ {
+			%info<id> = ~$0;
+		} elsif /\// {
+			%info<type> = FILE::DIR;
+		} elsif /r/ {
+			%info<type> = FILE::NORMAL;
+		} elsif /s(\d+)/ {
+			%info<size> = +$0;
+		} elsif /m(\d+)/ {
+			%info<time> = +$0;
+		}
+		# seems like fmode have not use 
+		#(elsif /up(\d+)/ {
+		#	%info<mode> = ~$0;
+		#})
+	}
+	
+	%info;
+}
+
+method !gettype($type) {
+	given $type {
+		when '-' {
+			return FILE::NORMAL;
+		}
+		when 'd' {
+			return FILE::DIR;
+		}
+		when 'l' {
+			return FILE::LINK;
+		}
+		when 's' {
+			return FILE::SOCKET;
+		}
+		when 'p' {
+			return FILE::PIPE;
+		}
+		when 'c' {
+			return FILE::CHAR;
+		}
+		when 'b' {
+			return FILE::BLOCK;
+		}
+	}
+}
+
+constant @month = (
+	"jan","feb","mar","apr",
+	"may","jun","jul","aug",
+	"sep","oct","nov","dec"
+);
+
+method !getmonth(Str $str) {
+	my $strlc = $str.lc;
+	
+	my $i = 0;
+	
+	for @month {
+		if $strlc eq $_ {
+			return $i;
+		}
+		$i++;
+	}
+	
+	return -1;
+}
+
+method !binls(Str $str is copy) {
+	my %info;
+	
+	if $str ~~ /^
+			([\-|b|c|d|l|p|s])
+			[
+				[\-|<.alpha>]+ |
+				\s+\[ [\-|<.alpha>]+ \]  
+			]\s+/ {
+		%info<type> = self!gettype(~$0);
+		if $str ~~ /
+				$<size> = (\d+)\s+
+				$<month> = (<.alpha> ** 3)\s+
+				$<day> = (\d+)\s+
+				[
+					$<year> = (\d ** 4) |
+				 	$<hour> = (\d ** 2) \: $<minute> = (\d ** 2)
+				]\s+
+				$<name> = (.*)$/ {
+			%info<name> = $<name>;
+			%info<size> = $<size>;
+			if $<year>.defined {
+				#get time
+			} else {
+				#get time
+			}
+		}
+	}
+	if %info<name>:exists {
+		if %info<name> ~~ /(.*)\s+\-\>\s+(.*)/ {
+			%info<name> = ~$0;
+			%info<link> = ~$1;
+		}
+	}
+	if $str ~~ s:s/^(.*)\.([DIR|.*])\;\S*\s+// {
+		if $1 eq DIR {
+			%info<type> = FILE::DIR;
+			%info<name> = ~$0;
+		} else {
+			%info<type> = FILE::NORMAL;
+			%info<name> = ~$0 ~ '.' ~ $1;
+		}
+		if $str ~~ /^\S+\s+(\d+)\-(\w ** 3)\-(\d ** 4)\s+(\d+)\:(\d+)/ {
+			#$0 day $1 month $2 year $3 hour $4 minute
+		}
+	} elsif $str ~~ /^(\d+)\-(\d+)\-(\d ** 4)\s+(\d+) \: (\d+)([AM|PM])\s+([\<DIR\> | \d+])\s+(.*)/ {
+		#$0 month $1 day $2 year $3 hour $4 minute $5 AM | PM
+		%info<name> = ~$7;
+		if ~$6 eq '<DIR>' {
+			%info<type> = FILE::DIR;
+		} else {
+			%info<size> = +$6;
+			%info<type> = FILE::NORMAL;
+		}
+	}
+	
+	%info;
 }
 
 #NOT IMPLEMENT
