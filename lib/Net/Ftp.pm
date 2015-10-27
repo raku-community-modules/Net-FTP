@@ -174,7 +174,7 @@ method list($path?) {
 # 425|426|451 error
 # 450|500|501|502|530 error
 	unless $!pasv ?? 
-			self!pasv_connect(:line-separator("\r\n")) !!
+			self!pasv_connect() !!
 			self!port_connect() {
 		return ();
 	}
@@ -186,11 +186,9 @@ method list($path?) {
 	my @res = ();
 	if self!handlecmd() {
 		@res = self!readlist();
-		$!ftpd.close();	
-		if $!res != 226 && $!res != 250 {
-			self!handlecmd();
-		}
+		self!handlecmd();
 	}
+	$!ftpd.close();	
 	return @res;
 }
 
@@ -278,7 +276,7 @@ method res() {
 }
 
 method msg() {
-	~$!msg;
+	@!cbuff;#~$!msg;
 }
 
 method !readlist() {
@@ -303,6 +301,8 @@ method !readlist() {
 method !pasv_connect(:$encoding = 'utf-8', :$line-separator = "\n") {
 # 227 ok
 # 500|501|502|530 error
+	self.pasv();
+	note $!msg;
 	if ($!msg ~~ /(\d+\,\d+\,\d+\,\d+)\,(\d+)\,(\d+)/) {
 		$!ftpd = $!SOCKET_CLASS.new(
 						:host($0.split(',').join('.')), 
@@ -385,20 +385,22 @@ method !respone() {
 			$line =@!cbuff.shift;
 		
 			if ($line ~~ /^(\d ** 3)\s(.*)/) {
-				($!res, $!msg) = ($0, $1);
+				($res, $msg) = ($0, $1);
 				last;
 			} elsif ($line ~~ /^(\d ** 3)\-(.*)/) {
-				my ($res, $msg) = ($0, $1);
+				($res, $msg) = ($0, $1);
 			} elsif ($line ~~ /^$res\s(.*)/) {
-				($!res, $!msg) = ($res, $msg ~ $0);
+				$msg = $msg ~ $0;
 				last;
+			} elsif ($line ~~ /\s+(.*)/) {
+				$msg = $msg ~ $0;
 			} else {
-				($!res, $!msg) = (-1, 'Unknow respone!');
+				($res, $msg) = (-1, 'Unknow respone!');
 				last;
 			}
 		} else {
 			$buf = $!ftpc.recv(:bin);
-			note $buf;
+			
 			for self!buflines($buf) {
 				$line = $_.unpack("A*");
 				@!cbuff.push: $line;
@@ -406,6 +408,7 @@ method !respone() {
 			}
 		}
 	}
+	($!res, $!msg) = ($res, $msg);
 }
 
 method !dispatch() {
