@@ -302,7 +302,6 @@ method !pasv_connect(:$encoding = 'utf-8', :$line-separator = "\n") {
 # 227 ok
 # 500|501|502|530 error
 	self.pasv();
-	note $!msg;
 	if ($!msg ~~ /(\d+\,\d+\,\d+\,\d+)\,(\d+)\,(\d+)/) {
 		$!ftpd = $!SOCKET_CLASS.new(
 						:host($0.split(',').join('.')), 
