@@ -24,14 +24,14 @@ method new (*%args) {
 }
 
 method connect() {
-	$!conn = $!port ??
+	$!conn = $!pasv ??
 		$!SOCKET.new(
-			:listen,
 			:host($!host),
 			:port($!port),
 			:family($!family),
 			:encoding($!encoding)) !!
 		$!SOCKET.new(
+			:listen,
 			:host($!host),
 			:port($!port),
 			:family($!family),
