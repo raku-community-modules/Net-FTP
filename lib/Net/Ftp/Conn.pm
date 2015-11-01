@@ -7,24 +7,15 @@ has $.host;
 has $.port 		= 21;
 has $.family	= 2;
 has $.encoding	= "utf8";
-has $.pasv		= False;
+has $!flag		= False;
 has $!conn;
 
-method new (*%args) {
-	if !%args<pasv> {
-		%args<host> = %args<host> ?? 
-			%args<host> !! 
-			"localhost";
-	} else {
-		unless %args<host> {
-			fail("Host can not be empty!");
-		}
-	}
+method new (*%args is copy) {
 	self.bless(|%args);
 }
 
-method connect() {
-	$!conn = $!pasv ??
+method connect(:$client = True) {
+	$!conn = $client ??
 		$!SOCKET.new(
 			:host($!host),
 			:port($!port),
@@ -36,6 +27,7 @@ method connect() {
 			:port($!port),
 			:family($!family),
 			:encoding($!encoding));
+	$!flag = True;
 	
 	return $!conn ~~ $!SOCKET;
 }
@@ -46,10 +38,20 @@ method close() {
 
 multi method sendcmd(Str $cmd) {
 	$!conn.print: $cmd ~ "\r\n";
+	$!flag = True;
 }
 
 multi method sendcmd(Str $cmd, Str $para) {
 	$!conn.print: $cmd ~ " $para" ~ "\r\n";
+	$!flag = True;
+}
+
+method can_recv() {
+	$!flag;
+}
+
+method recv_over() {
+	$!flag = False;
 }
 
 multi method recv(:$bin?) {
@@ -62,4 +64,36 @@ multi method send(Str $str) {
 
 multi method send(Buf $buf) {
 	$!conn.write: $buf;	
+}
+
+method host() {
+	$!host;
+}
+
+method port() {
+	$!port;
+}
+
+method family() {
+	$!family;
+}
+
+method encoding() {
+	$!encoding;
+}
+
+method set_host(Str $host) {
+	$!host = $host;
+}
+
+method set_port(Str $port) {
+	$!port = $port;
+}
+
+method set_family(Str $family) {
+	$!family = $family;
+}
+
+method set_encoding(Str $encoding) {
+	$!host = $encoding;
 }

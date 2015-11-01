@@ -55,7 +55,7 @@ sub formatBinls(Str $str is copy) {
                 [\-|<.alpha>]+ |
                 \s+\[ [\-|<.alpha>]+ \]
             ]\s+/ {
-        %info<type> = self!gettype(~$0);
+        %info<type> = gettype(~$0);
         if $str ~~ /
                 $<size> = (\d+)\s+
                 $<month> = (<.alpha> ** 3)\s+
@@ -191,4 +191,19 @@ sub getyear() {
 
 sub gettimet(Int $year, Int $month, Int $day, Int $hour, Int $minute) {
 
+}
+
+# $month start 0;
+sub getseconds(Int $y, Int $m, Int $d) is export {
+    my ($year, $month, $day) = ($y, $m, $d);
+
+    if $month >= 2 {
+        $month += 10;
+        $year -= 1;
+    } else {
+        $month -= 2;
+    }
+    
+    return (($year / 4).floor  - ($year / 100).floor + ($year / 400).floor  + 
+        $year * 365 + (367 * $month / 12).floor + $day - 719499) * 86400;
 }

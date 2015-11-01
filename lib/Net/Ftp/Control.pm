@@ -1,16 +1,28 @@
 
 use Net::Ftp::Buffer;
 use Net::Ftp::Config;
+use Net::Ftp::Conn;
 
-unit class Net::Ftp::Comm;
+unit class Net::Ftp::Control;
 
-has $.conn;
-has $.newline = Buf.new(0x0d, 0x0a);
+has $.debug;
+has $!conn;
 has @!lines;
-has Buf $!buff is rw;
+has Buf $!buff;
 
-method new (*%args) {
-    self!bless(|%args);
+method new (*%args is copy) {
+    self.bless(|%args)!initialize(|%args);
+}
+
+method !initialize(*%args) {
+    undefine(%args<debug>);
+    $!conn = Net::Ftp::Conn.new(|%args);
+    self;
+}
+
+method cmd_conn() {
+    note '+connect' if $!debug;
+    $!conn.connect();
 }
 
 method cmd_user(Str $user) {
@@ -65,6 +77,10 @@ method cmd_rest(Str $pos) {
     $!conn.sendcmd('REST', $pos);
 }
 
+method cmd_rest(Int $pos) {
+    $!conn.sendcmd('REST', ~$pos);
+}
+
 multi method cmd_list(Str $path) {
     $!conn.sendcmd('LIST', $path);
 }
@@ -77,7 +93,14 @@ method cmd_stor(Str $path) {
     $!conn.sendcmd('STOR', $path);
 }
 
+method cmd_close() {
+    $!conn.close();
+}
+
 method get() {
+    unless $!conn.can_recv() {
+        fail("You need send a command!");
+    }
     my ($code, $msg, $line);
 
     loop (;;) {
@@ -97,16 +120,20 @@ method get() {
             }
         } else {
             $!buff = $!buff ??
-                    merge($buff, $!conn.recv(:bin)) !!
+                    merge($!buff, $!conn.recv(:bin)) !!
                     $!conn.recv(:bin);
 
-            for split($!buff, $!newline) {
-                @!lines.push: $_.unpack("A*");
+            for split($!buff, Buf.new(0x0d, 0x0a)) {
+                $line = $_.unpack("A*");
+                note '+' ~ $line if $!debug;
+                @!lines.push: $line;
             }
+
+            $!conn.recv_over();
         }
     }
 
-    return ($code, $msg);
+    return (~$code, ~$msg);
 }
 
 method dispatch($code) {
