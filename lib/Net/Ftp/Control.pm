@@ -3,102 +3,96 @@ use Net::Ftp::Buffer;
 use Net::Ftp::Config;
 use Net::Ftp::Conn;
 
-unit class Net::Ftp::Control;
+unit class Net::Ftp::Control is Net::Ftp::Conn;
 
 has $.debug;
-has $!conn;
 has @!lines;
 has Buf $!buff;
 
-method new (*%args is copy) {
-    self.bless(|%args)!initialize(|%args);
-}
-
-method !initialize(*%args) {
-    undefine(%args<debug>);
-    $!conn = Net::Ftp::Conn.new(|%args);
-    self;
+#   %args
+#   host port family encoding debug
+method new (*%args is copy) { 
+    nextsame(|%args);
 }
 
 method cmd_conn() {
     note '+connect' if $!debug;
-    $!conn.connect();
 }
 
 method cmd_user(Str $user) {
-    $!conn.sendcmd('USER', $user);
+    self.sendcmd('USER', $user);
 }
 
 method cmd_pass(Str $pass) {
-    $!conn.sendcmd('PASS', $pass);
+    self.sendcmd('PASS', $pass);
 }
 
 method cmd_acct(Str $account) {
-    $!conn.sendcmd('ACCT', $account);
+    self.sendcmd('ACCT', $account);
 }
 
 method cmd_cwd(Str $path) {
-    $!conn.sendcmd('CWD', $path);
+    self.sendcmd('CWD', $path);
 }
 
 method cmd_cdup() {
-    $!conn.sendcmd('CDUP');
+    self.sendcmd('CDUP');
 }
 
 method cmd_smnt(Str $drive) {
-    $!conn.sendcmd('SMNT', $drive);
+    self.sendcmd('SMNT', $drive);
 }
 
 method cmd_rein() {
-    $!conn.sendcmd('REIN');
+    self.sendcmd('REIN');
 }
 
 method cmd_quit() {
-    $!conn.sendcmd('QUIT');
+    self.sendcmd('QUIT');
 }
 
 method cmd_pwd() {
-    $!conn.sendcmd('PWD');
+    self.sendcmd('PWD');
 }
 
 method cmd_port(Str $info) {
-    $!conn.sendcmd('PORT', $info);
+    self.sendcmd('PORT', $info);
 }
 
 method cmd_pasv() {
-    $!conn.sendcmd('PASV');
+    self.sendcmd('PASV');
 }
 
 method cmd_type(Str $type) {
-    $!conn.sendcmd('TYPE', $type);
+    self.sendcmd('TYPE', $type);
 }
 
-method cmd_rest(Str $pos) {
-    $!conn.sendcmd('REST', $pos);
+multi method cmd_rest(Str $pos) {
+    self.sendcmd('REST', $pos);
 }
 
-method cmd_rest(Int $pos) {
-    $!conn.sendcmd('REST', ~$pos);
+multi method cmd_rest(Int $pos) {
+    self.sendcmd('REST', ~$pos);
 }
 
 multi method cmd_list(Str $path) {
-    $!conn.sendcmd('LIST', $path);
+    self.sendcmd('LIST', $path);
 }
 
 multi method cmd_list() {
-    $!conn.sendcmd('LIST');
+    self.sendcmd('LIST');
 }
 
 method cmd_stor(Str $path) {
-    $!conn.sendcmd('STOR', $path);
+    self.sendcmd('STOR', $path);
 }
 
 method cmd_close() {
-    $!conn.close();
+    self.close();
 }
 
 method get() {
-    unless $!conn.can_recv() {
+    unless self.can_recv() {
         fail("You need send a command!");
     }
     my ($code, $msg, $line);
@@ -120,8 +114,8 @@ method get() {
             }
         } else {
             $!buff = $!buff ??
-                    merge($!buff, $!conn.recv(:bin)) !!
-                    $!conn.recv(:bin);
+                    merge($!buff, self.recv(:bin)) !!
+                    self.recv(:bin);
 
             for split($!buff, Buf.new(0x0d, 0x0a)) {
                 $line = $_.unpack("A*");
@@ -129,7 +123,7 @@ method get() {
                 @!lines.push: $line;
             }
 
-            $!conn.recv_over();
+            self.recv_over();
         }
     }
 

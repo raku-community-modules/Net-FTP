@@ -1,6 +1,7 @@
 
 use Net::Ftp::Conn;
 use Net::Ftp::Control;
+use Net::Ftp::Transfer;
 use Net::Ftp::Config;
 
 unit class Net::Ftp;
@@ -16,14 +17,16 @@ has $!code;
 has $!msg;
 
 method new (*%args is copy) {
+	unless %args<family> {
+		%args<family> = 2;
+	}
+	unless %args<encoding> {
+		%args<encoding> = "utf8";
+	}
 	self.bless(|%args)!initialize(|%args);
 }
 
 method !initialize(*%args) {
-	undefine(%args<user>);
-	undefine(%args<pass>);
-	undefine(%args<passive>);
-	undefine(%args<ascii>);
 	$!ftpc = Net::Ftp::Control.new(|%args);
 	self;
 }
@@ -152,4 +155,46 @@ method binary() {
 method rest(Int $pos) {
 	$!ftpc.cmd_rest($pos);
 	self!handlecmd();
+}
+
+method list(Str $path?) {
+	my $transfer = self!conn_transfer();
+	
+	if $path {
+		$!ftpc.cmd_list($path);
+	} else {
+		$!ftpc.cmd_list();
+	}
+	my @res;
+	if self!handlecmd() {
+		@res = $transfer.readlist();
+		say @res;
+		$transfer.close();
+	}
+
+	return @res;
+}
+
+method !conn_transfer() {
+	if $!passive {
+		$!ftpc.cmd_pasv();
+		unless self!handlecmd() {
+			return FTP::FAIL;
+		}
+	} else {
+
+	}
+	if ($!msg ~~ /
+			$<host> = (\d+\,\d+\,\d+\,\d+)\,
+			$<p1> = (\d+)\,
+			$<p2> = (\d+)/) {
+		Net::Ftp::Transfer.new(
+			:host($<host>.split(',').join('.')),
+			:port($<p1> * 256 + $<p2>),
+			:passive($!passive),
+			:ascii($!ascii),
+			:family($!family),
+			:encoding($!encoding));
+	}
+
 }

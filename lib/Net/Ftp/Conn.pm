@@ -2,38 +2,30 @@
 
 unit class Net::Ftp::Conn;
 
-has $.SOCKET = IO::Socket::INET;
+has $.SOCKET;
 has $.host;
-has $.port 		= 21;
-has $.family	= 2;
-has $.encoding	= "utf8";
+has $.port;
 has $!flag		= False;
 has $!conn;
 
+#	%args
+#	host port family encoding client
 method new (*%args is copy) {
-	self.bless(|%args);
+	unless %args<port> {
+		%args<port> = 21;
+	}
+	unless %args<SOCKET> {
+		%args<SOCKET> = IO::Socket::INET;
+	}
+	dd %args;
+	self.bless(|%args)!connect(|%args);
 }
 
-method connect(:$client = True) {
-	$!conn = $client ??
-		$!SOCKET.new(
-			:host($!host),
-			:port($!port),
-			:family($!family),
-			:encoding($!encoding)) !!
-		$!SOCKET.new(
-			:listen,
-			:host($!host),
-			:port($!port),
-			:family($!family),
-			:encoding($!encoding));
+method !connect(*%args) {
+	$!conn = $!SOCKET.new(|%args);
 	$!flag = True;
-	
-	return $!conn ~~ $!SOCKET;
-}
-
-method close() {
-	$!conn.close(); 
+	fail("Connect failed!") unless $!conn ~~ $!SOCKET;
+	self;
 }
 
 multi method sendcmd(Str $cmd) {
@@ -54,7 +46,7 @@ method recv_over() {
 	$!flag = False;
 }
 
-multi method recv(:$bin?) {
+method recv (:$bin?) {
     $bin ?? $!conn.recv(:bin) !! $!conn.recv();
 }
 
@@ -66,34 +58,14 @@ multi method send(Buf $buf) {
 	$!conn.write: $buf;	
 }
 
+method close() {
+	$!conn.close(); 
+}
+
 method host() {
 	$!host;
 }
 
 method port() {
 	$!port;
-}
-
-method family() {
-	$!family;
-}
-
-method encoding() {
-	$!encoding;
-}
-
-method set_host(Str $host) {
-	$!host = $host;
-}
-
-method set_port(Str $port) {
-	$!port = $port;
-}
-
-method set_family(Str $family) {
-	$!family = $family;
-}
-
-method set_encoding(Str $encoding) {
-	$!host = $encoding;
 }

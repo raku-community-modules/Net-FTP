@@ -14,16 +14,18 @@ sub split (Buf $buf is rw, Buf $sep, :$empty = False) is export {
                     @lines.push: $buf.subbuf($l, $r - $l);
                     $r += +$sep;
                     $l = $r;
+
                 }
             } else{
                 $get = 0;last;
             }
         }
     }
+
     if ($r - $l >= 1) {
         $buf = $buf.subbuf($l, +$buf - $l);
     } 
-
+    
     return @lines;
 }
 

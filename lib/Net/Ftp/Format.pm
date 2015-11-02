@@ -12,7 +12,7 @@ unit module Net::Ftp::Format;
 #   time    => file last modify time
 
 sub format (Str $str) is export {
-    ($str ~~ /^+/) ?? formatEplf($str) !! formatBinls($str);
+    ($str ~~ /^\+/) ?? formatEplf($str) !! formatBinls($str);
 }
 
 sub formatEplf(Str $str is copy) {
@@ -68,11 +68,11 @@ sub formatBinls(Str $str is copy) {
             %info<name> = ~$<name>;
             %info<size> = +$<size>;
             %info<time> = gettimet(
-                    $<year> ?? $<year> !! getyear(),
-                    $<month>,
-                    $<day>,
-                    $<year> ?? 0 !! $<hour>,
-                    $<year> ?? 0 !! $<minute>);
+                    +($<year> ?? $<year> !! getyear()),
+                    getmonth(~$<month>),
+                    +$<day>,
+                    +($<year> ?? 0 !! $<hour>),
+                    +($<year> ?? 0 !! $<minute>));
 
         }
     }
@@ -106,7 +106,7 @@ sub formatBinls(Str $str is copy) {
             #$0 day $1 month $2 year $3 hour $4 minute
             %info<time> = gettimet(
                     $<year>,
-                    $<month>,
+                    getmonth(~$<month>),
                     $<day>,
                     $<hour>,
                     $<minute>);
@@ -187,10 +187,11 @@ sub getmonth(Str $str) {
 }
 
 sub getyear() {
+    0;
 }
 
 sub gettimet(Int $year, Int $month, Int $day, Int $hour, Int $minute) {
-
+    0;
 }
 
 # $month start 0;
