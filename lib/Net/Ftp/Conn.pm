@@ -5,7 +5,6 @@ unit class Net::Ftp::Conn;
 has $.SOCKET;
 has $.host;
 has $.port;
-has $!flag		= False;
 has $!conn;
 
 #	%args
@@ -17,33 +16,21 @@ method new (*%args is copy) {
 	unless %args<SOCKET> {
 		%args<SOCKET> = IO::Socket::INET;
 	}
-	dd %args;
 	self.bless(|%args)!connect(|%args);
 }
 
 method !connect(*%args) {
 	$!conn = $!SOCKET.new(|%args);
-	$!flag = True;
 	fail("Connect failed!") unless $!conn ~~ $!SOCKET;
 	self;
 }
 
 multi method sendcmd(Str $cmd) {
 	$!conn.print: $cmd ~ "\r\n";
-	$!flag = True;
 }
 
 multi method sendcmd(Str $cmd, Str $para) {
 	$!conn.print: $cmd ~ " $para" ~ "\r\n";
-	$!flag = True;
-}
-
-method can_recv() {
-	$!flag;
-}
-
-method recv_over() {
-	$!flag = False;
 }
 
 method recv (:$bin?) {

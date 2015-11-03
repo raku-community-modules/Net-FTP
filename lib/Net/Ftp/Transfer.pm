@@ -16,11 +16,8 @@ method new (*%args is copy) {
 }
 
 method readlist() {
-	unless self.can_recv() {
-        fail("You need send a command!");
-    }
 	my @infos;
-	
+
 	while (my $buf = self.recv(:bin)) {
 		for split($buf, Buf.new(0x0d, 0x0a)) {
 			push @infos, format($_.unpack("A*"));

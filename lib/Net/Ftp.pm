@@ -6,8 +6,8 @@ use Net::Ftp::Config;
 
 unit class Net::Ftp;
 
-has $.user;
-has $.pass;
+has Str $.user;
+has Str $.pass;
 has $.passive 	= False;
 has $.ascii 	= False;
 has $.family    = 2;
@@ -50,13 +50,13 @@ method login(:$account?) {
 		return FTP::FAIL;
 	}
 
-	$!ftpc.cmd_user($!user);
+	$!ftpc.cmd_user($!user ?? $!user !! 'anonymous');
 	unless self!handlecmd() {
 		return FTP::FAIL;
 	}
 
 	if $!code == 331 || $!code == 332 {
-		$!ftpc.cmd_pass($!pass);
+		$!ftpc.cmd_pass(($!pass || $!user) ?? $!pass !! 'anonymous@');
 		unless self!handlecmd() {
 			return FTP::FAIL;
 		}
@@ -168,11 +168,81 @@ method list(Str $path?) {
 	my @res;
 	if self!handlecmd() {
 		@res = $transfer.readlist();
-		say @res;
+		
 		$transfer.close();
+		self!handlecmd();
 	}
 
 	return @res;
+}
+
+method ls($path?) {
+	if $path {
+		self.list($path);
+	} else {
+		self.list();
+	}
+}
+
+method dir($path?) {
+	if $path {
+		self.list($path);
+	} else {
+		self.list();
+	}
+}
+
+multi method stor(Str $path is copy, Buf $data) {
+	my $transfer = self!conn_transfer();
+
+	unless $!ascii {
+		$path = $path.subst("\n", "\0");
+	}
+	$!ftpc.cmd_stor($path);
+	if self!handlecmd() {
+		$transfer.send: $data;
+		$transfer.close();
+		if self!handlecmd() {
+			return FTP::OK;
+		}
+	}
+
+	return FTP::FAIL;
+}
+
+multi method stor(Str $path is copy, Str $data) {
+	my $transfer = self!conn_transfer();
+
+	unless $!ascii {
+		$path = $path.subst("\n", "\0");
+	}
+	$!ftpc.cmd_stor($path);
+	if self!handlecmd() {
+		$transfer.send: $data;
+		$transfer.close();
+		if self!handlecmd() {
+			return FTP::OK;
+		}
+	}
+
+	return FTP::FAIL;
+}
+
+method put(Str $path,
+		Str $remote-path? = "",
+		Str :$encoding = "utf8", 
+		Bool :$binary? = False, 
+		Bool :$over-write? = False) {
+
+	my $content = read_file($path, $encoding, $binary);
+
+	unless $content {
+		return FTP::FAIL;
+	}
+
+	return self.stor($remote-path ??
+		 $remote-path !!
+		 $path , $content);
 }
 
 method !conn_transfer() {
@@ -181,20 +251,104 @@ method !conn_transfer() {
 		unless self!handlecmd() {
 			return FTP::FAIL;
 		}
+		if ($!msg ~~ /
+				$<host> = (\d+\,\d+\,\d+\,\d+)\,
+				$<p1> = (\d+)\,
+				$<p2> = (\d+)/) {
+			Net::Ftp::Transfer.new(
+				:host($<host>.split(',').join('.')),
+				:port($<p1> * 256 + $<p2>),
+				:passive($!passive),
+				:ascii($!ascii),
+				:family($!family),
+				:encoding($!encoding));
+		}
 	} else {
 
 	}
-	if ($!msg ~~ /
-			$<host> = (\d+\,\d+\,\d+\,\d+)\,
-			$<p1> = (\d+)\,
-			$<p2> = (\d+)/) {
-		Net::Ftp::Transfer.new(
-			:host($<host>.split(',').join('.')),
-			:port($<p1> * 256 + $<p2>),
-			:passive($!passive),
-			:ascii($!ascii),
-			:family($!family),
-			:encoding($!encoding));
+}
+
+sub read_file(Str $path, Str $encoding, Bool $bin) {
+	my $fp = IO::Path.new($path);
+
+	unless $fp ~~ :e {
+		return FTP::FAIL;
 	}
 
+	my $fh = $fp.open(:r, :bin<$bin>);
+
+	my $content = $bin ?? 
+			$fh.slurp-rest(:bin) !!
+			 $fh.slurp-rest(:enc($encoding));
+
+	$fh.cloe();
+
+	return $content;
 }
+
+=begin pod
+
+=head1 NAME
+
+Net::Ftp - A simple ftp client
+
+=head1 SYNOPSIS
+
+	use Net::Ftp;
+
+	my $ftp = Net::Ftp.new(:user<ftpt>, :pass<123456>, :host<192.168.0.101>, :debug, :passive);
+
+	$ftp.login();
+	$ftp.list();
+	$ftp.quit();
+
+=head1 DESCRIPTION
+
+Net::Ftp is a ftp client class in perl6.
+
+=head1 METHOD
+
+=head2 new([OPTIONS]);
+	This is a constructor for Net::Ftp.
+
+	my $ftp = Net::Ftp.new(:host<192.168.0.1>);
+
+	OPTIONS are passed in hash. If OPTIONS followed by a square brackets , '*' means optionals, 
+
+	other means has a default value.
+
+	These OPTIONS are :
+
+=item3 host
+	- Ftp host we want connect to, it's required. Sample as '192.168.0.1';
+
+=item3 port[21]
+	- Ftp server port number.
+
+=item3 family[2]
+	- The ip domain we use. Defaults to 2 for IPv4, and can be set to 3 for IPv6.
+
+=item3 encoding[utf8]
+	- Specifies the encoding we use.
+
+=item3 user[*]
+	- You may be need a ftp username to login. If user is not given or a empty string, ftp will login as anonymous.
+
+=item3 pass[*]
+	- Ftp user's password. If password is not given or a empty string, and the user is anonymous, anonymous@ will be 
+	the password of user. 
+
+=item3 passive[False]
+	- Default ftp is active mode, set to True use ftp passive mode.
+
+=item3 debug[False]
+	- If debug is set, print debug infomation. Generally it is [+code, msg we receive from ftp server]. 
+
+=item3 SOCKET[IO::Socket::INET]
+	- Socket class we use.
+
+=end pod
+
+
+
+

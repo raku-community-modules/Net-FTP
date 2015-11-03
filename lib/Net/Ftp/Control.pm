@@ -12,7 +12,7 @@ has Buf $!buff;
 #   %args
 #   host port family encoding debug
 method new (*%args is copy) { 
-    nextsame(|%args);
+    callsame(|%args);
 }
 
 method cmd_conn() {
@@ -92,9 +92,6 @@ method cmd_close() {
 }
 
 method get() {
-    unless self.can_recv() {
-        fail("You need send a command!");
-    }
     my ($code, $msg, $line);
 
     loop (;;) {
@@ -122,8 +119,6 @@ method get() {
                 note '+' ~ $line if $!debug;
                 @!lines.push: $line;
             }
-
-            self.recv_over();
         }
     }
 
