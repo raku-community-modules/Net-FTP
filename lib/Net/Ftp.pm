@@ -1,136 +1,138 @@
-use v6;
+
+use Net::Ftp::Conn;
+use Net::Ftp::Control;
+use Net::Ftp::Transfer;
+use Net::Ftp::Config;
 
 unit class Net::Ftp;
 
-enum FTP is export (
-	:FAIL<0>,
-	:OK<1>,
-);
-
-enum TYPE is export < A I >;
-
-enum FILE is export < NORMAL DIR LINK SOCKET PIPE CHAR BLOCK >;
-
-has $!SOCKET_CLASS = IO::Socket::INET;
-
+has Str $.user;
+has Str $.pass;
+has $.passive 	= False;
+has $.ascii 	= False;
+has $.family    = 2;
+has $.encoding  = "utf8";
 has $!ftpc;
-has $!ftpd;
-has $!res;
+has $!code;
 has $!msg;
-has	$.family = 2; #3 -> IPV6
-
-has Str $.host = "";
-has Int $.port = 21;
-has Str $.user = "";
-has Str $.pass = "";
-
-has Bool $.debug = False;
-has Bool $.pasv = False;
-has Bool $.ascii = True;
 
 method new (*%args is copy) {
-	self.bless(|%args);
+	unless %args<family> {
+		%args<family> = 2;
+	}
+	unless %args<encoding> {
+		%args<encoding> = "utf8";
+	}
+	self.bless(|%args)!initialize(|%args);
 }
 
-method login(:$account = "") {
-	$!ftpc = self!connect($!host, $!port, $!family);
-	unless $!ftpc {
-		return FTP::OK;
+method !initialize(*%args) {
+	$!ftpc = Net::Ftp::Control.new(|%args);
+	self;
+}
+
+method !handlecmd() {
+	($!code, $!msg) = $!ftpc.get();
+	$!ftpc.dispatch($!code);
+}
+
+method code() {
+	$!code;
+}
+
+method msg() {
+	$!msg;
+}
+
+method login(:$account?) {
+	$!ftpc.cmd_conn();
+	unless self!handlecmd() {
+		return FTP::FAIL;
 	}
-	if self!welcome() {
-		self!authenticate($account);
-	} else {
-		FTP::FAIL;
+
+	$!ftpc.cmd_user($!user ?? $!user !! 'anonymous');
+	unless self!handlecmd() {
+		return FTP::FAIL;
 	}
+
+	if $!code == 331 || $!code == 332 {
+		$!ftpc.cmd_pass(($!pass || $!user) ?? $!pass !! 'anonymous@');
+		unless self!handlecmd() {
+			return FTP::FAIL;
+		}
+
+		if $!code == 332 {
+			$account ?? fail("Login need account.") !!
+			$!ftpc.cmd_acct($account);
+			unless self!handlecmd() {
+				return FTP::FAIL;
+			}
+		}
+	}
+
+	return FTP::OK;
+}
+
+method quit() {
+	$!ftpc.cmd_quit();
+	unless self!handlecmd() {
+		return FTP::FAIL;
+	}
+	$!ftpc.cmd_close();
+	return FTP::OK;
 }
 
 method cwd(Str $path) {
-# 250 200 ok
-# 500|501|502|530|550 error
-	self!sendcmd2('CWD', $path);
+	$!ftpc.cmd_cwd($path);
 	self!handlecmd();
 }
 
 method cdup() {
-# 200 250 ok
-# 500|501|502|530|550 error
-	self!sendcmd1('CDUP');
+	$!ftpc.cmd_cdup();
 	self!handlecmd();
 }
 
 method smnt(Str $drive) {
-# 202 250 ok
-# 500|501|502|530|550 error
-	self!sendcmd2('SMNT', $drive);
+	$!ftpc.cmd_smnt($drive);
 	self!handlecmd();
 }
 
 method rein() {
-#should use quit instead
-# 220 ok
-# 120 wait
-# 500|502 error
-	self!sendcmd1('REIN');
+	$!ftpc.cmd_rein();
 	self!handlecmd();
 }
 
-method quit() {
-# 221 ok
-# 500 error
-	self!sendcmd1('QUIT');
-	unless self!handlecmd() {
-	#should return ?
-		return FTP::FAIL;
-	}
-# close socket
-	$!ftpc.close() if $!ftpc.defined;
-	return FTP::OK;
-}
-
 method pwd() {
-# 257 ok
-# 550|501|502|550 error
-	self!sendcmd1('PWD');
-	unless self!handlecmd() {
-		return '';
+	$!ftpc.cmd_pwd();
+	if self!handlecmd() {
+		if ($!msg ~~ /\"(.*)\"/) {
+			return ~$0;
+		}	
 	}
-	if $!msg ~~ /\"(.*)\"/ {
-		return ~$0;
+	return FTP::FAIL;
+}
+
+method passive(Bool $passive?) {
+	if $passive {
+		$!passive = $passive;
 	}
-	return '';
+	return $!passive;
 }
 
-# cause of perl6's getsockname not implement, you need
-# pass a port to method
-method port(Int $port?) {
-# server does not connect to us immediately
-	return FTP::FAIL if $!pasv;
-	$!pasv = False;
-    if ($port.defined) {
-		#OS::gethost not implement now ..
-    } else {
-    	return FTP::FAIL;
-    }
-}
-
-method pasv() {
-	$!pasv = True; 
-}
-
-method type(TYPE $t) {
+method type(MODE $t) {
 	given $t {
-		when TYPE::A {
+		when MODE::ASCII {
 			unless $!ascii {
-				self!sendcmd2('TYPE', 'A');
+				$!ftpc.cmd_type('A');
 				$!ascii = True;
 				unless self!handlecmd() {
 					return FTP::FAIL;
 				}
 			}
 		}
-		when TYPE::I {
+		when MODE::BINARY {
 			if $!ascii {
-				self!sendcmd2('TYPE', 'I');
+				$!ftpc.cmd_type('I');
 				$!ascii = False;
 				unless self!handlecmd() {
 					return FTP::FAIL;
@@ -142,35 +144,40 @@ method type(TYPE $t) {
 	return FTP::OK;
 }
 
-method rest($pos) {
-	self!sendcmd2('REST', ~$pos);
-	unless self!handlecmd() {
-		return FTP::FAIL;
-	}
-	return FTP::OK;
+method ascii() {
+	self.type(MODE::ASCII);
 }
 
-method list($path?) {
-	if $!pasv {
-		self!pasv_connect(:line-separator("\r\n"));
+method binary() {
+	self.type(MODE::BINARY);
+}
+
+method rest(Int $pos) {
+	$!ftpc.cmd_rest($pos);
+	self!handlecmd();
+}
+
+method list(Str $path?) {
+	my $transfer = self!conn_transfer();
+	
+	if $path {
+		$!ftpc.cmd_list($path);
 	} else {
-		self!port_connect();
+		$!ftpc.cmd_list();
 	}
-	if $path.defined {
-		self!sendcmd2('LIST', ~$path);
-	} else {
-		self!sendcmd1('LIST');
+	my @res;
+	if self!handlecmd() {
+		@res = $transfer.readlist();
+		
+		$transfer.close();
+		self!handlecmd();
 	}
-	my @res = ();
-	if self!handlecmd() & self!handlecmd() {
-		@res = self!readlist();	
-	}
-	$!ftpd.close() if $!ftpd;
+
 	return @res;
 }
 
 method ls($path?) {
-	if $path.defined {
+	if $path {
 		self.list($path);
 	} else {
 		self.list();
@@ -178,314 +185,170 @@ method ls($path?) {
 }
 
 method dir($path?) {
-	if $path.defined {
+	if $path {
 		self.list($path);
 	} else {
 		self.list();
 	}
 }
 
-method res() {
-	$!res;
-}
+multi method stor(Str $path is copy, Buf $data) {
+	my $transfer = self!conn_transfer();
 
-method msg() {
-	~$!msg;
-}
-
-method !readlist() {
-	my @infos;
-
-	while (my $buf = $!ftpd.get()) {
-		note $buf if $!debug;
-		$buf.chomp;
-		if $buf ~~ /^\+/ {
-			push @infos, self!eplf(~$buf);
-		} else {
-			push @infos, self!binls(~$buf);
-		}
-	}	
-	@infos;
-}
-
-method !pasv_connect(:$encoding = 'utf-8', :$line-separator = '\n') {
-# 227 ok
-# 500|501|502|530 error
-	self!sendcmd1('PASV');
-	self!respone();
-	if ($!msg ~~ /(\d+\,\d+\,\d+\,\d+)\,(\d+)\,(\d+)/) {
-		$!ftpd = $!SOCKET_CLASS.new(
-						:host($0.split(',').join('.')), 
-						:port(~$1 * 256 + ~$2),
-						:family($!family),
-						:encoding($encoding),
-						:input-line-separator($line-separator)
-					);
-		unless $!ftpd {
-			return FTP::FAIL;
-		}
-		return FTP::OK;
+	unless $!ascii {
+		$path = $path.subst("\n", "\0");
 	}
+	$!ftpc.cmd_stor($path);
+	if self!handlecmd() {
+		$transfer.send: $data;
+		$transfer.close();
+		if self!handlecmd() {
+			return FTP::OK;
+		}
+	}
+
 	return FTP::FAIL;
 }
 
-method !port_connect() {
-	#
+multi method stor(Str $path is copy, Str $data) {
+	my $transfer = self!conn_transfer();
+
+	unless $!ascii {
+		$path = $path.subst("\n", "\0");
+	}
+	$!ftpc.cmd_stor($path);
+	if self!handlecmd() {
+		$transfer.send: $data;
+		$transfer.close();
+		if self!handlecmd() {
+			return FTP::OK;
+		}
+	}
+
+	return FTP::FAIL;
 }
 
-method !connect($h, $p, $f) {
-	$!SOCKET_CLASS.new(:host($h),
-						 :port($p), 
-						 :family($f));
-}
+method put(Str $path,
+		Str $remote-path? = "",
+		Str :$encoding = "utf8", 
+		Bool :$binary? = False, 
+		Bool :$over-write? = False) {
 
-method !welcome() {
-# 220 ok
-# 120 wait - just return fail
-	self!respone();
-	self!dispatch();
-}
+	my $content = read_file($path, $encoding, $binary);
 
-method !authenticate($account) {
-# 230 ok
-# 331 332 pass
-# 530 500|501 error
-	self!sendcmd2('USER', #if user empty, use 'anonymous'. 
-				$!user ?? $!user !! 'anonymous');
-	unless self!handlecmd() {
+	unless $content {
 		return FTP::FAIL;
 	}
-	
-	# | need bracket
-	if (($!res == 331) | ($!res == 332)) {
-# 230 ok
-# 202 no need pass, we send a pass
-# 332 account
-# 530 500|501|503 error
-		self!sendcmd2('PASS', #if user pass both empty, use 'anonymous@' 
-					($!pass | $!user) ?? $!pass !! 'anonymous@');
+
+	return self.stor($remote-path ??
+		 $remote-path !!
+		 $path , $content);
+}
+
+method !conn_transfer() {
+	if $!passive {
+		$!ftpc.cmd_pasv();
 		unless self!handlecmd() {
 			return FTP::FAIL;
 		}
-		
-		if ($!res == 332) {
-# 230 ok
-# 202 permission was already granted
-# 530 500|501|503 error
-			self!sendcmd2('ACCT', $account);
-			unless self!handlecmd() {
-				return FTP::FAIL;
-			}
-		}
-	}
-	
-	return FTP::OK;
-}
-
-method !handlecmd() {
-	self!respone();
-	self!dispatch();
-}
-
-method !respone() {
-	my $line = $!ftpc.get();
-	
-	note ~$line if $!debug;
-	
-	if ($line ~~ /^(\d ** 3)\s(.*)/) {
-		($!res, $!msg) = ($0, $1);
-	} elsif ($line ~~ /^(\d ** 3)\-(.*)/) {
-		my ($res, $msg) = ($0, $1);
-		
-		loop {
-			$line = $!ftpc.get();
-			
-			if ($line ~~ /^$res\s(.*)/) {
-				($!res, $!msg) = ($res, $msg ~ $0);
-				last;
-			} else {
-				$msg = $msg ~ $line;
-			}
+		if ($!msg ~~ /
+				$<host> = (\d+\,\d+\,\d+\,\d+)\,
+				$<p1> = (\d+)\,
+				$<p2> = (\d+)/) {
+			Net::Ftp::Transfer.new(
+				:host($<host>.split(',').join('.')),
+				:port($<p1> * 256 + $<p2>),
+				:passive($!passive),
+				:ascii($!ascii),
+				:family($!family),
+				:encoding($!encoding));
 		}
 	} else {
-		($!res, $!msg) = (-1, 'Unknow respone!');
+
 	}
 }
 
-method !dispatch() {
-	given $!res {
-		when 220 |
-			 230 | 332 | 331 | 202 |
-			 221 |
-			 250 | 200 |
-			 257 |
-			 227 |
-			 350 |
-			 150 | 125 | 226 {
-			return FTP::OK;
-		}
-		# 120 is not a error
-		# 421 service closing ftpc
-		when 120 | 421 |
-			 530 | 500 | 501 | 503 | 421 |
-			 502 | 550 |
-			 504 |
-			 425 | 426 | 451 | 450 {
-			return FTP::FAIL;
-		}
+sub read_file(Str $path, Str $encoding, Bool $bin) {
+	my $fp = IO::Path.new($path);
+
+	unless $fp ~~ :e {
+		return FTP::FAIL;
 	}
+
+	my $fh = $fp.open(:r, :bin<$bin>);
+
+	my $content = $bin ?? 
+			$fh.slurp-rest(:bin) !!
+			 $fh.slurp-rest(:enc($encoding));
+
+	$fh.cloe();
+
+	return $content;
 }
 
-##private multi method not support..
-method !sendcmd2($cmd, $para) {;
-	$!ftpc.print: $cmd ~ ' ' ~ $para ~ "\r\n";
-}
+=begin pod
 
-method !sendcmd1($cmd) {
-	$!ftpc.print: $cmd ~ "\r\n";
-}
+=head1 NAME
 
-method !exit(Str $err_msg) {
-	say $err_msg;
-	exit;
-}
+Net::Ftp - A simple ftp client
 
-method !eplf(Str $str is copy) {
-	my %info;
+=head1 SYNOPSIS
 
-	if $str ~~ s/\,\s+(.*)$// {
-		%info<name> = ~$0;
-	}
-	$str ~~ s/^\+//;
+	use Net::Ftp;
 
-	my @col = $str.split(',');
+	my $ftp = Net::Ftp.new(:user<ftpt>, :pass<123456>, :host<192.168.0.101>, :debug, :passive);
 
-	for @col {
-		if /i(.*)/ {
-			%info<id> = ~$0;
-		} elsif /\// {
-			%info<type> = FILE::DIR;
-		} elsif /r/ {
-			%info<type> = FILE::NORMAL;
-		} elsif /s(\d+)/ {
-			%info<size> = +$0;
-		} elsif /m(\d+)/ {
-			%info<time> = +$0;
-		}
-		# seems like fmode have not use 
-		#(elsif /up(\d+)/ {
-		#	%info<mode> = ~$0;
-		#})
-	}
-	
-	%info;
-}
+	$ftp.login();
+	$ftp.list();
+	$ftp.quit();
 
-method !gettype($type) {
-	given $type {
-		when '-' {
-			return FILE::NORMAL;
-		}
-		when 'd' {
-			return FILE::DIR;
-		}
-		when 'l' {
-			return FILE::LINK;
-		}
-		when 's' {
-			return FILE::SOCKET;
-		}
-		when 'p' {
-			return FILE::PIPE;
-		}
-		when 'c' {
-			return FILE::CHAR;
-		}
-		when 'b' {
-			return FILE::BLOCK;
-		}
-	}
-}
+=head1 DESCRIPTION
 
-constant @month = (
-	"jan","feb","mar","apr",
-	"may","jun","jul","aug",
-	"sep","oct","nov","dec"
-);
+Net::Ftp is a ftp client class in perl6.
 
-method !getmonth(Str $str) {
-	my $strlc = $str.lc;
-	
-	my $i = 0;
-	
-	for @month {
-		if $strlc eq $_ {
-			return $i;
-		}
-		$i++;
-	}
-	
-	return -1;
-}
+=head1 METHOD
 
-method !binls(Str $str is copy) {
-	my %info;
-	
-	if $str ~~ /^
-			([\-|b|c|d|l|p|s])
-			[
-				[\-|<.alpha>]+ |
-				\s+\[ [\-|<.alpha>]+ \]  
-			]\s+/ {
-		%info<type> = self!gettype(~$0);
-		if $str ~~ /
-				$<size> = (\d+)\s+
-				$<month> = (<.alpha> ** 3)\s+
-				$<day> = (\d+)\s+
-				[
-					$<year> = (\d ** 4) |
-				 	$<hour> = (\d ** 2) \: $<minute> = (\d ** 2)
-				]\s+
-				$<name> = (.*)$/ {
-			%info<name> = $<name>;
-			%info<size> = $<size>;
-			if $<year>.defined {
-				#get time
-			} else {
-				#get time
-			}
-		}
-	}
-	if %info<name>:exists {
-		if %info<name> ~~ /(.*)\s+\-\>\s+(.*)/ {
-			%info<name> = ~$0;
-			%info<link> = ~$1;
-		}
-	}
-	if $str ~~ s:s/^(.*)\.([DIR|.*])\;\S*\s+// {
-		if $1 eq DIR {
-			%info<type> = FILE::DIR;
-			%info<name> = ~$0;
-		} else {
-			%info<type> = FILE::NORMAL;
-			%info<name> = ~$0 ~ '.' ~ $1;
-		}
-		if $str ~~ /^\S+\s+(\d+)\-(\w ** 3)\-(\d ** 4)\s+(\d+)\:(\d+)/ {
-			#$0 day $1 month $2 year $3 hour $4 minute
-		}
-	} elsif $str ~~ /^(\d+)\-(\d+)\-(\d ** 4)\s+(\d+) \: (\d+)([AM|PM])\s+([\<DIR\> | \d+])\s+(.*)/ {
-		#$0 month $1 day $2 year $3 hour $4 minute $5 AM | PM
-		%info<name> = ~$7;
-		if ~$6 eq '<DIR>' {
-			%info<type> = FILE::DIR;
-		} else {
-			%info<size> = +$6;
-			%info<type> = FILE::NORMAL;
-		}
-	}
-	
-	%info;
-}
+=head2 new([OPTIONS]);
+	This is a constructor for Net::Ftp.
 
-#NOT IMPLEMENT
-# STRU MODE ALLO [TIMEOUT]
+	my $ftp = Net::Ftp.new(:host<192.168.0.1>);
+
+	OPTIONS are passed in hash. If OPTIONS followed by a square brackets , '*' means optionals, 
+
+	other means has a default value.
+
+	These OPTIONS are :
+
+=item3 host
+	- Ftp host we want connect to, it's required. Sample as '192.168.0.1';
+
+=item3 port[21]
+	- Ftp server port number.
+
+=item3 family[2]
+	- The ip domain we use. Defaults to 2 for IPv4, and can be set to 3 for IPv6.
+
+=item3 encoding[utf8]
+	- Specifies the encoding we use.
+
+=item3 user[*]
+	- You may be need a ftp username to login. If user is not given or a empty string, ftp will login as anonymous.
+
+=item3 pass[*]
+	- Ftp user's password. If password is not given or a empty string, and the user is anonymous, anonymous@ will be 
+	the password of user. 
+
+=item3 passive[False]
+	- Default ftp is active mode, set to True use ftp passive mode.
+
+=item3 debug[False]
+	- If debug is set, print debug infomation. Generally it is [+code, msg we receive from ftp server]. 
+
+=item3 SOCKET[IO::Socket::INET]
+	- Socket class we use.
+
+=end pod
+
+
+
+
