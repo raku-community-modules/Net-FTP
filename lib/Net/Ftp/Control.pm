@@ -87,6 +87,18 @@ method cmd_stor(Str $path) {
     self.sendcmd('STOR', $path);
 }
 
+multi method cmd_stou(Str $path) {
+    self.sendcmd('STOU', $path);
+}
+
+multi method cmd_stou() {
+    self.sendcmd('STOU');
+}
+
+method cmd_appe(Str $path) {
+    self.sendcmd('APPE', $path);
+}
+
 method cmd_close() {
     self.close();
 }

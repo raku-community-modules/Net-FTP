@@ -157,82 +157,137 @@ method rest(Int $pos) {
 	self!handlecmd();
 }
 
-method list(Str $path?) {
+method list(Str $remote-path?) {
 	my $transfer = self!conn_transfer();
 	
-	if $path {
-		$!ftpc.cmd_list($path);
+	unless $transfer ~~ Net::Ftp::Conn {
+		return FTP::FAIL;
+	}
+	if $remote-path {
+		$!ftpc.cmd_list($remote-path);
 	} else {
 		$!ftpc.cmd_list();
 	}
 	my @res;
 	if self!handlecmd() {
 		@res = $transfer.readlist();
-		
 		$transfer.close();
 		self!handlecmd();
+	} else {
+		$transfer.close();
 	}
 
 	return @res;
 }
 
-method ls($path?) {
-	if $path {
-		self.list($path);
+method ls($remote-path?) {
+	if $remote-path {
+		self.list($remote-path);
 	} else {
 		self.list();
 	}
 }
 
-method dir($path?) {
-	if $path {
-		self.list($path);
+method dir($remote-path?) {
+	if $remote-path {
+		self.list($remote-path);
 	} else {
 		self.list();
 	}
 }
 
-multi method stor(Str $path is copy, Buf $data) {
+method stor(Str $remote-path is copy, $data) {
 	my $transfer = self!conn_transfer();
 
 	unless $!ascii {
-		$path = $path.subst("\n", "\0");
+		$remote-path = $remote-path.subst("\n", "\0");
 	}
-	$!ftpc.cmd_stor($path);
+	$!ftpc.cmd_stor($remote-path);
 	if self!handlecmd() {
 		$transfer.send: $data;
 		$transfer.close();
 		if self!handlecmd() {
 			return FTP::OK;
 		}
+	} else {
+		$transfer.close();
 	}
 
 	return FTP::FAIL;
 }
 
-multi method stor(Str $path is copy, Str $data) {
+method stou($data, Str $remote-path? is copy) {
+	my $transfer = self!conn_transfer();
+
+	if (!$!ascii) && $remote-path {
+		$remote-path = $remote-path.subst("\n", "\0");
+	}
+	if $remote-path {
+		$!ftpc.cmd_stou($remote-path);
+	} else {
+		$!ftpc.cmd_stou();	
+	}
+	if self!handlecmd() {
+		if $!code == 250 {
+			unless self!handlecmd() {
+				$transfer.close();
+				return FTP::FAIL;
+			}
+		}
+		if $!msg ~~ /\:\s+$<name> = (.*)$/ {
+			$transfer.send: $data;
+			$transfer.close();
+			if self!handlecmd() {
+				return $<name>;
+			}
+		} else {
+			$transfer.close();
+		}
+	} else {
+		$transfer.close();
+	}
+
+	return FTP::FAIL;
+}
+
+method appe(Str $remote-path, $data) {
 	my $transfer = self!conn_transfer();
 
 	unless $!ascii {
-		$path = $path.subst("\n", "\0");
+		$remote-path = $remote-path.subst("\n", "\0");
 	}
-	$!ftpc.cmd_stor($path);
+	$!ftpc.cmd_appe($remote-path);
 	if self!handlecmd() {
 		$transfer.send: $data;
 		$transfer.close();
 		if self!handlecmd() {
 			return FTP::OK;
 		}
+	} else {
+		$transfer.close();
 	}
 
 	return FTP::FAIL;
+}
+
+method append(Str $path,
+			Str $remote-path? = "",
+			Str :$encoding? = "utf8", 
+			Bool :$binary? = False) {
+	my $content = read_file($path, $encoding, $binary);
+
+	unless $content {
+		return FTP::FAIL;
+	}
+
+	return self.appe($remote-path ?? $remote-path !! $path , $content);
 }
 
 method put(Str $path,
 		Str $remote-path? = "",
-		Str :$encoding = "utf8", 
+		Str :$encoding? = "utf8", 
 		Bool :$binary? = False, 
-		Bool :$over-write? = False) {
+		Bool :$overwrite? = False) {
 
 	my $content = read_file($path, $encoding, $binary);
 
@@ -240,9 +295,9 @@ method put(Str $path,
 		return FTP::FAIL;
 	}
 
-	return self.stor($remote-path ??
-		 $remote-path !!
-		 $path , $content);
+	return $overwrite ?? 
+	self.stor($remote-path ?? $remote-path !! $path , $content) !! 
+	self.stou($content, $remote-path ?? $remote-path !! $path );
 }
 
 method !conn_transfer() {
@@ -255,13 +310,17 @@ method !conn_transfer() {
 				$<host> = (\d+\,\d+\,\d+\,\d+)\,
 				$<p1> = (\d+)\,
 				$<p2> = (\d+)/) {
-			Net::Ftp::Transfer.new(
+			my $transfer = Net::Ftp::Transfer.new(
 				:host($<host>.split(',').join('.')),
 				:port($<p1> * 256 + $<p2>),
 				:passive($!passive),
 				:ascii($!ascii),
 				:family($!family),
 				:encoding($!encoding));
+			unless $transfer ~~ Net::Ftp::Conn {
+				fail("Can not connect to @$<host>:$<port>");
+			}
+			$transfer;
 		}
 	} else {
 
@@ -281,7 +340,7 @@ sub read_file(Str $path, Str $encoding, Bool $bin) {
 			$fh.slurp-rest(:bin) !!
 			 $fh.slurp-rest(:enc($encoding));
 
-	$fh.cloe();
+	$fh.close();
 
 	return $content;
 }
@@ -348,7 +407,6 @@ Net::Ftp is a ftp client class in perl6.
 	- Socket class we use.
 
 =end pod
-
 
 
 
