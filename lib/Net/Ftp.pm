@@ -250,7 +250,7 @@ method stou($data, Str $remote-path? is copy) {
 	return FTP::FAIL;
 }
 
-method appe(Str $remote-path, $data) {
+method appe(Str $remote-path is copy, $data) {
 	my $transfer = self!conn_transfer();
 
 	unless $!ascii {
@@ -287,7 +287,7 @@ method put(Str $path,
 		Str $remote-path? = "",
 		Str :$encoding? = "utf8", 
 		Bool :$binary? = False, 
-		Bool :$overwrite? = False) {
+		Bool :$unique? = False) {
 
 	my $content = read_file($path, $encoding, $binary);
 
@@ -295,9 +295,46 @@ method put(Str $path,
 		return FTP::FAIL;
 	}
 
-	return $overwrite ?? 
-	self.stor($remote-path ?? $remote-path !! $path , $content) !! 
-	self.stou($content, $remote-path ?? $remote-path !! $path );
+	return $unique ??  
+	self.stou($content, $remote-path ?? $remote-path !! $path ) !! 
+	self.stor($remote-path ?? $remote-path !! $path , $content);
+}
+
+method retr(Str $remote-path is copy, Bool :$binary? = False) {
+	unless ($binary ?? self.binary() !! self.ascii()) {
+		return FTP::FAIL;
+	}
+	my $transfer = self!conn_transfer();
+
+	$remote-path = $remote-path.subst("\n", "\0");
+	$!ftpc.cmd_retr($remote-path);
+	my $ret;
+
+	if self!handlecmd {
+		$ret = $binary ??
+			$transfer.read(:bin) !!
+			$transfer.read();
+
+		self!handlecmd();
+	}
+
+	return $ret;
+}
+
+method get(Str $remote-path, 
+		Str $local? = "",
+		Bool :$binary? = False,
+		Bool :$appened? = False) {
+	my $data = self.retr($remote-path, :binary($binary));
+
+	unless $data {
+		return FTP::FAIL;
+	}
+
+	write_file($local ?? $local !! $remote-path, 
+			$data, $appened);
+
+	return FTP::OK;
 }
 
 method !conn_transfer() {
@@ -334,7 +371,7 @@ sub read_file(Str $path, Str $encoding, Bool $bin) {
 		return FTP::FAIL;
 	}
 
-	my $fh = $fp.open(:r, :bin<$bin>);
+	my $fh = $fp.open(:r, :bin($bin));
 
 	my $content = $bin ?? 
 			$fh.slurp-rest(:bin) !!
@@ -343,6 +380,24 @@ sub read_file(Str $path, Str $encoding, Bool $bin) {
 	$fh.close();
 
 	return $content;
+}
+
+multi sub write_file(Str $path, Buf $data, Bool $append) {
+	my $fh = $append ?? 
+		$path.IO.open(:a) !! $path.IO.open(:w);
+
+	$fh.write($data);
+			
+	$fh.close();
+}
+
+multi sub write_file(Str $path, Str $data, Bool $append) {
+	my $fh = $append ?? 
+		$path.IO.open(:a) !! $path.IO.open(:w);
+
+	$fh.print($data);
+			
+	$fh.close();
 }
 
 =begin pod

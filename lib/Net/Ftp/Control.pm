@@ -99,6 +99,10 @@ method cmd_appe(Str $path) {
     self.sendcmd('APPE', $path);
 }
 
+method cmd_retr(Str $path) {
+    self.sendcmd('RETR', $path);
+}
+
 method cmd_close() {
     self.close();
 }
