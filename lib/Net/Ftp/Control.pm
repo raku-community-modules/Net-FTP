@@ -83,6 +83,14 @@ multi method cmd_list() {
     self.sendcmd('LIST');
 }
 
+multi method cmd_nlist(Str $path) {
+    self.sendcmd('NLIST', $path);
+}
+
+multi method cmd_nlist() {
+    self.sendcmd('NLIST');
+}
+
 method cmd_stor(Str $path) {
     self.sendcmd('STOR', $path);
 }
@@ -101,6 +109,34 @@ method cmd_appe(Str $path) {
 
 method cmd_retr(Str $path) {
     self.sendcmd('RETR', $path);
+}
+
+method cmd_mkd(Str $path) {
+    self.sendcmd('MKD', $path);
+}
+
+method cmd_rmd(Str $path) {
+    self.sendcmd('RMD', $path);
+}
+
+method cmd_rnfr(Str $path) {
+    self.sendcmd('RNFR', $path);
+}
+
+method cmd_rnto(Str $path) {
+    self.sendcmd('RNTO', $path);
+}
+
+method cmd_abor() {
+    self.sendcmd('ABOR');
+}
+
+method cmd_dele(Str $path) {
+    self.sendcmd('DELE', $path);
+}
+
+method cmd_noop() {
+    self.sendcmd('NOOP');
 }
 
 method cmd_close() {
@@ -173,3 +209,4 @@ method dispatch($code) {
 }
 
 # vim: ft=perl6
+

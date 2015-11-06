@@ -92,6 +92,27 @@ method cdup() {
 	self!handlecmd();
 }
 
+method mkdir(Str $remote-path) {
+	$!ftpc.cmd_mkd($remote-path.subst("\n", "\0"));
+	if self!handlecmd() {
+		if $!code == 257 && ($!msg ~~ /\"(.*)\"/) {
+			return ~$0;
+		} else {
+			return $remote-path;
+		}
+	}
+	return FTP::FAIL;
+}
+
+method md(Str $remote-path) {
+	self.mkdir($remote-path);
+}
+
+method rmdir(Str $remote-path) {
+	$!ftpc.cmd_rmd($remote-path.subst("\n", "\0"));
+	self!handlecmd();
+}
+
 method smnt(Str $drive) {
 	$!ftpc.cmd_smnt($drive);
 	self!handlecmd();
@@ -423,9 +444,11 @@ Net::Ftp is a ftp client class in perl6.
 =head1 METHOD
 
 =head2 new([OPTIONS]);
+
 	This is a constructor for Net::Ftp.
 
-	my $ftp = Net::Ftp.new(:host<192.168.0.1>);
+	CODE:
+		my $ftp = Net::Ftp.new(:host<192.168.0.1>);
 
 	OPTIONS are passed in hash. If OPTIONS followed by a square brackets , '*' means optionals, 
 
@@ -434,34 +457,91 @@ Net::Ftp is a ftp client class in perl6.
 	These OPTIONS are :
 
 =item3 host
-	- Ftp host we want connect to, it's required. Sample as '192.168.0.1';
+
+	Ftp host we want connect to, it's required. Sample as '192.168.0.1';
 
 =item3 port[21]
-	- Ftp server port number.
+
+	Ftp server port number.
 
 =item3 family[2]
-	- The ip domain we use. Defaults to 2 for IPv4, and can be set to 3 for IPv6.
+
+	The ip domain we use. Defaults to 2 for IPv4, and can be set to 3 for IPv6.
 
 =item3 encoding[utf8]
-	- Specifies the encoding we use.
+
+	Specifies the encoding we use.
 
 =item3 user[*]
-	- You may be need a ftp username to login. If user is not given or a empty string, ftp will login as anonymous.
+
+	You may be need a ftp username to login. If user is not given or a empty string, ftp will login as anonymous.
 
 =item3 pass[*]
-	- Ftp user's password. If password is not given or a empty string, and the user is anonymous, anonymous@ will be 
+
+	Ftp user's password. If password is not given or a empty string, and the user is anonymous, anonymous@ will be 
 	the password of user. 
 
 =item3 passive[False]
-	- Default ftp is active mode, set to True use ftp passive mode.
+
+	Default ftp is active mode, set to True use ftp passive mode.
 
 =item3 debug[False]
-	- If debug is set, print debug infomation. Generally it is [+code, msg we receive from ftp server]. 
+
+	If debug is set, print debug infomation. Generally it is [+code, msg we receive from ftp server]. 
 
 =item3 SOCKET[IO::Socket::INET]
-	- Socket class we use.
+
+	Socket class we use.
+
+=head2 code( --> Int);
+
+	Get the last respone code from server.
+
+	CODE:
+		say $ftp.code();
+
+=head2 msg( --> Str);
+
+	Get the last respone msg from server. 
+
+	CODE:
+		say $ftp.msg();
+
+=head2 login([ACCOUNT], --> enum);
+
+	Login to remote ftp server. Some ftp server may be ask for a account.
+	
+	CODE:
+		$ftp.login();
+
+	RETURN VALUE:
+		FTP::OK	- When success;
+		FTP::FAIL - When failed.
+
+=head2 quit( --> enum);
+
+	Disconnect from ftp server.
+
+	CODE:
+		$ftp.quit();
+
+	RETURN VALUE:
+		FTP::OK	- When success;
+		FTP::FAIL - When failed.
+
+=head2 cwd(Str $dir, --> enum);
+	
+	Change current directory to $dir.
+
+	CODE:
+		$ftp.cwd("/somedir");
+
+	RETURN VALUE:
+		FTP::OK	- When success;
+		FTP::FAIL - When failed.
 
 =end pod
+
 
 
 

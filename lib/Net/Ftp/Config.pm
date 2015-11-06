@@ -14,4 +14,4 @@ enum FILE is export <
 >;
 
 
-
+# vim: ft=perl6

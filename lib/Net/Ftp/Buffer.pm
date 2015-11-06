@@ -56,4 +56,5 @@ multi sub merge (@bufs) is export {
     return $ret;
 }
 
+# vim: ft=perl6
 

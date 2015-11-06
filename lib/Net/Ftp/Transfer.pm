@@ -42,3 +42,5 @@ method read(Bool :$bin? = False) {
 
 	return $bin ?? merge(@infos) !! ~(@infos.join());
 }
+
+# vim: ft=perl6
