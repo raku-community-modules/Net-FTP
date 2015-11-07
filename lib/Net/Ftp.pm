@@ -358,6 +358,23 @@ method get(Str $remote-path,
 	return FTP::OK;
 }
 
+method rename(Str $old is copy, Str $new is copy) {
+	$old = $old.subst("\n", "\0");
+	$!ftpc.cmd_rnfr($old);
+	unless self!handlecmd {
+		return FTP::FAIL;
+	}
+	$new = $new.subst("\n", "\0");
+	$!ftpc.cmd_rnto($new);
+	self!handlecmd();
+}
+
+method delete(Str $remote-path is copy) {
+	$remote-path = $remote-path.subst("\n", "\0");
+	$!ftpc.cmd_dele($remote-path);
+	self!handlecmd();
+}
+
 method !conn_transfer() {
 	if $!passive {
 		$!ftpc.cmd_pasv();
@@ -530,7 +547,7 @@ Net::Ftp is a ftp client class in perl6.
 		FTP::FAIL - When failed.
 
 =head2 cwd(Str $dir, --> enum);
-	
+
 	Change current directory to $dir.
 
 	CODE:
@@ -541,7 +558,6 @@ Net::Ftp is a ftp client class in perl6.
 		FTP::FAIL - When failed.
 
 =end pod
-
 
 
 
