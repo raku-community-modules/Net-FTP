@@ -25,7 +25,7 @@ if $ftp.login() {
 	}
 	$ftp.quit();
 }
-'''
+```
 
 ## WARNING
  - Net::Ftp::Format 
