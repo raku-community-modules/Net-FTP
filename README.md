@@ -1,9 +1,16 @@
+<<<<<<< HEAD
 # Net::Ftp
+=======
+# Net-Ftp
+
+![Image of CI](https://travis-ci.org/araraloren/Net-Ftp.svg?branch=master)
+>>>>>>> master
 
 perl6 Net::Ftp
 
 A simple ftp client module written in perl6.
 
+<<<<<<< HEAD
 ## USAGE
 
 ```Perl6
@@ -32,3 +39,7 @@ if $ftp.login() {
  	getyear(), gettimet(), not yet implement.
  - Net::Ftp
  	Ftp only implemented passive mode.
+=======
+
+
+>>>>>>> master
