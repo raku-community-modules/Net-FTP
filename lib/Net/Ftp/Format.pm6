@@ -208,3 +208,5 @@ sub getseconds(Int $y, Int $m, Int $d) is export {
     return (($year / 4).floor  - ($year / 100).floor + ($year / 400).floor  + 
         $year * 365 + (367 * $month / 12).floor + $day - 719499) * 86400;
 }
+
+# vim: ft=perl6

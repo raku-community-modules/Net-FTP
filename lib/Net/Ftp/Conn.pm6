@@ -56,3 +56,5 @@ method host() {
 method port() {
 	$!port;
 }
+
+# vim: ft=perl6

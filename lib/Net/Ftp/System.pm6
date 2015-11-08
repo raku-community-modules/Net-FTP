@@ -26,3 +26,5 @@ class tm is repr('CStruct') is export {
 }
 
 sub gmtime (Pointer) returns Pointer is native('libc.so.6') is export { * }
+
+# vim: ft=perl6
