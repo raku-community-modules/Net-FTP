@@ -1,11 +1,19 @@
 {
     "name" : "Net::Ftp",
-    "version" : "0.1.0",
-    "description" : "a ftp client written in perl6",
+    "version" : "0.6.0",
+    "description" : "A ftp client written in perl6",
     "author" : "loren",
     "provides" : {
-        "Net::Ftp" : "lib/Net/Ftp.pm"
+        "Net::Ftp" : "lib/Net/Ftp.pm6",
+        "Net::Ftp::Config" : "lib/Net/Ftp/Config.pm6",
+        "Net::Ftp::Buffer" : "lib/Net/Ftp/Buffer.pm6",
+        "Net::Ftp::Format" : "lib/Net/Ftp/Format.pm6",
+        "Net::Ftp::System" : "lib/Net/Ftp/System.pm6",
+        "Net::Ftp::Conn" : "lib/Net/Ftp/Conn.pm6",
+        "Net::Ftp::Control" : "lib/Net/Ftp/Control.pm6",
+        "Net::Ftp::Transfer" : "lib/Net/Ftp/Transfer.pm6",
     },
-    "depends" : [],
-    "source-url" : "git://github.com/araraloren/Net-Ftp.git"
+    "depends" : [
+    ],
+    "source-url" : "https://github.com/araraloren/Net-Ftp.git"
 }

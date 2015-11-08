@@ -222,4 +222,3 @@ method dispatch($code) {
 
 # vim: ft=perl6
 
-

@@ -342,8 +342,17 @@ method get(Str $remote-path,
 		return FTP::FAIL;
 	}
 
-	write_file($local ?? $local !! $remote-path, 
-			$data, $appened);
+	if $local {
+		my $localio = $local.IO;
+		if $localio ~~ :d {
+			write_file($localio.abspath() ~ '/' ~ $remote-path.IO.basename(), 
+				$data, $appened);
+		} else {
+			write_file($localio.asbpath(), $data, $appened);
+		}
+	} else {
+		write_file($remote-path, $data, $appened);
+	}
 
 	return FTP::OK;
 }
@@ -654,7 +663,6 @@ Net::Ftp is a ftp client class in perl6.
 =head2 syst( --> Str);
 
 =end pod
-
 
 
 
