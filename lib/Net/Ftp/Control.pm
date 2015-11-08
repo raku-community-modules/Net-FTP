@@ -135,6 +135,18 @@ method cmd_dele(Str $path) {
     self.sendcmd('DELE', $path);
 }
 
+method cmd_syst() {
+    self.sendcmd('SYST');
+}
+
+method cmd_stat() {
+    self.sendcmd('STAT');
+}
+
+method cmd_help(Str $cmd) {
+    self.sendcmd('HELP', $cmd);
+}
+
 method cmd_noop() {
     self.sendcmd('NOOP');
 }
@@ -209,4 +221,5 @@ method dispatch($code) {
 }
 
 # vim: ft=perl6
+
 

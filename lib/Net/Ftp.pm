@@ -113,16 +113,6 @@ method rmdir(Str $remote-path) {
 	self!handlecmd();
 }
 
-method smnt(Str $drive) {
-	$!ftpc.cmd_smnt($drive);
-	self!handlecmd();
-}
-
-method rein() {
-	$!ftpc.cmd_rein();
-	self!handlecmd();
-}
-
 method pwd() {
 	$!ftpc.cmd_pwd();
 	if self!handlecmd() {
@@ -375,6 +365,29 @@ method delete(Str $remote-path is copy) {
 	self!handlecmd();
 }
 
+method abort() {
+	$!ftpc.cmd_abor();
+	self!handlecmd();
+}
+
+method syst() {
+	$!ftpc.cmd_syst();
+	self!handlecmd();
+	$!msg;
+}
+
+method stat() {
+	$!ftpc.cmd_stat();
+	self!handlecmd();
+	$!msg;
+}
+
+method help(Str $command) {
+	$!ftpc.cmd_help($command);
+	self!handlecmd();
+	$!msg;
+}
+
 method !conn_transfer() {
 	if $!passive {
 		$!ftpc.cmd_pasv();
@@ -524,7 +537,7 @@ Net::Ftp is a ftp client class in perl6.
 	CODE:
 		say $ftp.msg();
 
-=head2 login([ACCOUNT], --> enum);
+=head2 login([Str $account], --> enum);
 
 	Login to remote ftp server. Some ftp server may be ask for a account.
 	
@@ -557,7 +570,91 @@ Net::Ftp is a ftp client class in perl6.
 		FTP::OK	- When success;
 		FTP::FAIL - When failed.
 
+=head2 cdup( --> enum);
+	
+	Change current directory to parent directory.
+
+	CODE:
+		$ftp.cdup();
+
+	RETURN VALUE:
+		FTP::OK	- When success;
+		FTP::FAIL - When failed.
+
+=head2 mkdir(Str $directory, --> Str | enum);
+
+	Create a new directory.
+
+	CODE:
+		$ftp.mkdir("/a");
+		$ftp.mkdir("./c");
+
+	RETURN VALUE:
+		new directory path	- When success;
+		FTP::FAIL - When failed.
+
+=head2 md(Str $directory, --> Str |enum);
+
+	Alias of mkdir.
+
+=head2 rmdir(Str $directory, --> enum);
+
+	Delete a directory.
+
+	CODE:
+		$ftp.rmdir("/a");
+		$ftp.rmdir("./b");
+
+	RETURN VALUE:
+		FTP::OK	- When success;
+		FTP::FAIL - When failed.
+
+=head2 pwd( --> Str | enum);
+
+=head2 passive([Bool $passive], --> Bool);
+
+=head2 type(Net::Ftp::Config::MODE $type, --> enum);
+
+=head2 ascii( --> enum);
+
+=head2 binary( --> enum);
+
+=head2 rest(Int $pos, --> enum);
+
+=head2 list(Str $remote-path, --> Array[Hash]);
+
+=head2 ls(Str $remote-path, --> Array[Hash]);
+
+=head2 dir(Str $remote-path, --> Array[Hash]);
+
+=head2 stor(Str $remote-path, Buf | Str $data, --> enum);
+
+=head2 stou(Buf | Str $data [,Str $remote-path], --> Str | enum);
+
+=head2 put(Str $path [,Str $remote-path] [,Str $encoding] [,Bool $binary] [,Bool $unique], --> Str | enum);
+
+=head2 appe(Str $remote-path, Buf | Str $data, --> enum);
+
+=head2 append(Str $path [,Str $remote-path] [,Str $encoding] [,Bool $binary], --> enum);
+
+=head2 retr(Str $remote-path [,Bool $binary], --> enum);
+
+=head2 get(Str $remote-path, [,Str $local-path] [,Bool $binary] [,Bool $append], --> enum);
+
+=heda2 rename(Str $oldname, Str $newname, --> enum);
+
+=head2 delete(Str $remote-path, --> enum);
+
+=head2 abort( --> enum);
+
+=head2 help(Str $command, --> Str);
+
+=head2 stat( --> Str);
+
+=head2 syst( --> Str);
+
 =end pod
+
 
 
 
