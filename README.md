@@ -1,6 +1,6 @@
 # Net::FTP
 
-![Image of CI](https://travis-ci.org/araraloren/Net-Ftp.svg?branch=master)
+[![Build Status](https://travis-ci.org/araraloren/Net-FTP.svg?branch=master)](https://travis-ci.org/araraloren/Net-FTP)
 
 perl6 Net::FTP
 
