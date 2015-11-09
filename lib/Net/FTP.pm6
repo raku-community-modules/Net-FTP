@@ -348,7 +348,7 @@ method get(Str $remote-path,
 			write_file($localio.abspath() ~ '/' ~ $remote-path.IO.basename(), 
 				$data, $appened);
 		} else {
-			write_file($localio.asbpath(), $data, $appened);
+			write_file($localio.abspath(), $data, $appened);
 		}
 	} else {
 		write_file($remote-path, $data, $appened);
