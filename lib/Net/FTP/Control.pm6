@@ -1,9 +1,9 @@
 
-use Net::Ftp::Buffer;
-use Net::Ftp::Config;
-use Net::Ftp::Conn;
+use Net::FTP::Buffer;
+use Net::FTP::Config;
+use Net::FTP::Conn;
 
-unit class Net::Ftp::Control is Net::Ftp::Conn;
+unit class Net::FTP::Control is Net::FTP::Conn;
 
 has $.debug;
 has @!lines;

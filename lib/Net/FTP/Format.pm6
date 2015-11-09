@@ -1,7 +1,7 @@
 
-use Net::Ftp::Config;
+use Net::FTP::Config;
 
-unit module Net::Ftp::Format;
+unit module Net::FTP::Format;
 
 #   FOMAT
 #   name    => file name

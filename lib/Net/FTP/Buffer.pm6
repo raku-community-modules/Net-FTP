@@ -1,5 +1,5 @@
 
-unit module Net::Ftp::Buffer;
+unit module Net::FTP::Buffer;
 
 sub split (Buf $buf is rw, Buf $sep, :$empty = False) is export {
     my @lines;
