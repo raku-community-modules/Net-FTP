@@ -2,8 +2,6 @@
     "name" : "Net::Ftp",
     "version" : "0.6.0",
     "description" : "A ftp client written in perl6",
-    "version" : "0.0.8",
-    "description" : "a ftp client written in perl6",
     "author" : "loren",
     "provides" : {
         "Net::Ftp" : "lib/Net/Ftp.pm6",
