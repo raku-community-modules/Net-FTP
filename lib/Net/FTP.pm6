@@ -1,10 +1,10 @@
 
-use Net::Ftp::Conn;
-use Net::Ftp::Control;
-use Net::Ftp::Transfer;
-use Net::Ftp::Config;
+use Net::FTP::Conn;
+use Net::FTP::Control;
+use Net::FTP::Transfer;
+use Net::FTP::Config;
 
-unit class Net::Ftp;
+unit class Net::FTP;
 
 has Str $.user;
 has Str $.pass;
@@ -27,7 +27,7 @@ method new (*%args is copy) {
 }
 
 method !initialize(*%args) {
-	$!ftpc = Net::Ftp::Control.new(|%args);
+	$!ftpc = Net::FTP::Control.new(|%args);
 	self;
 }
 
@@ -171,7 +171,7 @@ method rest(Int $pos) {
 method list(Str $remote-path?) {
 	my $transfer = self!conn_transfer();
 	
-	unless $transfer ~~ Net::Ftp::Conn {
+	unless $transfer ~~ Net::FTP::Conn {
 		return FTP::FAIL;
 	}
 	if $remote-path {
@@ -407,14 +407,14 @@ method !conn_transfer() {
 				$<host> = (\d+\,\d+\,\d+\,\d+)\,
 				$<p1> = (\d+)\,
 				$<p2> = (\d+)/) {
-			my $transfer = Net::Ftp::Transfer.new(
+			my $transfer = Net::FTP::Transfer.new(
 				:host($<host>.split(',').join('.')),
 				:port($<p1> * 256 + $<p2>),
 				:passive($!passive),
 				:ascii($!ascii),
 				:family($!family),
 				:encoding($!encoding));
-			unless $transfer ~~ Net::Ftp::Conn {
+			unless $transfer ~~ Net::FTP::Conn {
 				fail("Can not connect to @$<host>:$<port>");
 			}
 			$transfer;
@@ -464,13 +464,13 @@ multi sub write_file(Str $path, Str $data, Bool $append) {
 
 =head1 NAME
 
-Net::Ftp - A simple ftp client
+Net::FTP - A simple ftp client
 
 =head1 SYNOPSIS
 
-	use Net::Ftp;
+	use Net::FTP;
 
-	my $ftp = Net::Ftp.new(:user<ftpt>, :pass<123456>, :host<192.168.0.101>, :debug, :passive);
+	my $ftp = Net::FTP.new(:user<ftpt>, :pass<123456>, :host<192.168.0.101>, :debug, :passive);
 
 	$ftp.login();
 	$ftp.list();
@@ -478,16 +478,16 @@ Net::Ftp - A simple ftp client
 
 =head1 DESCRIPTION
 
-Net::Ftp is a ftp client class in perl6.
+Net::FTP is a ftp client class in perl6.
 
 =head1 METHOD
 
 =head2 new([OPTIONS]);
 
-	This is a constructor for Net::Ftp.
+	This is a constructor for Net::FTP.
 
 	CODE:
-		my $ftp = Net::Ftp.new(:host<192.168.0.1>);
+		my $ftp = Net::FTP.new(:host<192.168.0.1>);
 
 	OPTIONS are passed in hash. If OPTIONS followed by a square brackets , '*' means optionals, 
 
@@ -622,7 +622,7 @@ Net::Ftp is a ftp client class in perl6.
 
 =head2 passive([Bool $passive], --> Bool);
 
-=head2 type(Net::Ftp::Config::MODE $type, --> enum);
+=head2 type(Net::FTP::Config::MODE $type, --> enum);
 
 =head2 ascii( --> enum);
 

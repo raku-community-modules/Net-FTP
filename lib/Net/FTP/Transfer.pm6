@@ -1,10 +1,10 @@
 
-use Net::Ftp::Conn;
-use Net::Ftp::Config;
-use Net::Ftp::Buffer;
-use Net::Ftp::Format;
+use Net::FTP::Conn;
+use Net::FTP::Config;
+use Net::FTP::Buffer;
+use Net::FTP::Format;
 
-unit class Net::Ftp::Transfer is Net::Ftp::Conn;
+unit class Net::FTP::Transfer is Net::FTP::Conn;
 
 has $.ascii;
 

@@ -1,18 +1,18 @@
-# Net::Ftp
+# Net::FTP
 
 ![Image of CI](https://travis-ci.org/araraloren/Net-Ftp.svg?branch=master)
 
-perl6 Net::Ftp
+perl6 Net::FTP
 
 A simple ftp client module written in perl6.
 
 ## USAGE
 
 ```Perl6
-use Net::Ftp;
-use Net::Ftp::Config;
+use Net::FTP;
+use Net::FTP::Config;
 
-my $ftp = Net::Ftp.new(:host<ftpserver>, :user<user>, :pass<pass>, :passive);
+my $ftp = Net::FTP.new(:host<ftpserver>, :user<user>, :pass<pass>, :passive);
 
 if $ftp.login() {
 	mkdir('./ftpfile/');
@@ -30,10 +30,10 @@ if $ftp.login() {
 ```
 
 ## WARNING
- - Net::Ftp::Format 
+ - Net::FTP::Format 
  	getyear(), gettimet(), not yet implement.
- - Net::Ftp
- 	Ftp only implemented passive mode.
+ - Net::FTP
+ 	FTP only implemented passive mode.
 
 
 
