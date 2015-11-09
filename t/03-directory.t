@@ -2,13 +2,13 @@
 use v6;
 use Test;
 
-use Net::Ftp;
+use Net::FTP;
 
 plan 7;
 
 ##mirrors.sohu.com is a anonymous ftp service 
 
-my $ftp = Net::Ftp.new(:host('mirrors.sohu.com'));
+my $ftp = Net::FTP.new(:host('mirrors.sohu.com'));
 
 ok($ftp.login() == 1, "anonymous ftp login success");
 isnt($ftp.pwd(), '', "get current directory.");

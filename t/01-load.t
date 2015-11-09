@@ -2,8 +2,8 @@
 use v6;
 use Test;
 
-use Net::Ftp;
+use Net::FTP;
 
 plan 1;
 
-ok(1, "load Net::Ftp ok");
+ok(1, "load Net::FTP ok");
