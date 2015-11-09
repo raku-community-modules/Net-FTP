@@ -1,6 +1,6 @@
 
 
-unit class Net::Ftp::Conn;
+unit class Net::FTP::Conn;
 
 has $.SOCKET;
 has $.host;

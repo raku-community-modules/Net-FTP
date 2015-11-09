@@ -1,5 +1,5 @@
 
-unit module Net::Ftp::Config;
+unit module Net::FTP::Config;
 
 enum FTP is export <
 	FAIL OK

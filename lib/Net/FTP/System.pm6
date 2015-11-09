@@ -1,7 +1,7 @@
 
 use NativeCall;
 
-unit module Net::Ftp::System;
+unit module Net::FTP::System;
 
 sub time () returns int is native('libc.so.6') is export { * }
 
