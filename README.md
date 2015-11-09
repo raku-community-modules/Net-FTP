@@ -30,8 +30,10 @@ if $ftp.login() {
 ```
 
 ## Installation
+ 
  install with panda
- 	panda install Net::FTP
+ 
+ panda install Net::FTP
  
 ## WARNING
  - Net::FTP::Format - getyear(), gettimet(), not yet implement.
