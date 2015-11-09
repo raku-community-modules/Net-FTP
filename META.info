@@ -11,7 +11,7 @@
         "Net::Ftp::System" : "lib/Net/Ftp/System.pm6",
         "Net::Ftp::Conn" : "lib/Net/Ftp/Conn.pm6",
         "Net::Ftp::Control" : "lib/Net/Ftp/Control.pm6",
-        "Net::Ftp::Transfer" : "lib/Net/Ftp/Transfer.pm6",
+        "Net::Ftp::Transfer" : "lib/Net/Ftp/Transfer.pm6"
     },
     "depends" : [
     ],
