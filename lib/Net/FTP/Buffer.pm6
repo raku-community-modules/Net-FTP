@@ -29,28 +29,13 @@ sub split (Buf $buf is rw, Buf $sep, :$empty = False) is export {
     return @lines;
 }
 
-multi sub merge (Buf $lb, Buf $rb) is export {
+sub merge (Buf $lb, Buf $rb) is export {
     my $ret = Buf.new($lb);
 
     my $len = $lb.elems;
 
-    for 0 .. $rb.elems {
+    for 0 .. $rb.elems - 1 {
         $ret[$len + $_] = $rb[$_];
-    }
-
-    return $ret;
-}
-
-multi sub merge (@bufs) is export {
-    my Buf $ret .= new();
-
-    my $ln = 0;
-
-    for @bufs -> $buf {
-        for 0 .. $buf.elems {
-            $ret[$ln + $_] = $buf[$_];
-        }
-        $ln += $buf.elems;
     }
 
     return $ret;

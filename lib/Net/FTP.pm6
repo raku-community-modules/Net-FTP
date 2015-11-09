@@ -323,11 +323,13 @@ method retr(Str $remote-path is copy, Bool :$binary? = False) {
 
 	if self!handlecmd {
 		$ret = $binary ??
-			$transfer.read(:bin) !!
-			$transfer.read();
-
+            $transfer.readall(:bin) !!
+            $transfer.readall();
+        $transfer.close();
 		self!handlecmd();
-	}
+    } else {
+        $transfer.close();
+    }
 
 	return $ret;
 }
@@ -449,6 +451,28 @@ multi sub write_file(Str $path, Buf $data, Bool $append) {
 	$fh.write($data);
 			
 	$fh.close();
+}
+
+multi sub write_file(Str $path, Str @data, Bool $append) {
+    my $fh = $append ??
+        $path.IO.open(:a) !! $path.IO.open(:w);
+
+    for @data {
+        $fh.print($_);
+    }
+
+    $fh.close();
+}
+
+multi sub write_file(Str $path, @data, Bool $append) {
+    my $fh = $append ??
+        $path.IO.open(:a) !! $path.IO.open(:w);
+
+    for @data {
+        $fh.write($_);
+    }
+
+    $fh.close();
 }
 
 multi sub write_file(Str $path, Str $data, Bool $append) {
