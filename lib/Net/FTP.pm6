@@ -324,14 +324,14 @@ method retr(Str $remote-path is copy, Bool :$binary? = False) {
 	if self!handlecmd {
 		$ret = $binary ??
             $transfer.readall(:bin) !!
-            $transfer.readall();
+            $transfer.readall(); ## readall is slowly.
         $transfer.close();
 		self!handlecmd();
     } else {
         $transfer.close();
     }
 
-	return $ret;
+    return FTP::FAIL;
 }
 
 method get(Str $remote-path, 
@@ -340,7 +340,7 @@ method get(Str $remote-path,
 		Bool :$appened? = False) {
 	my $data = self.retr($remote-path, :binary($binary));
 
-	unless $data {
+    unless $data {
 		return FTP::FAIL;
 	}
 
