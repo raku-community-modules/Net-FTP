@@ -12,6 +12,7 @@ has $.ascii;
 #	host port passive ascii family encoding
 method new (*%args is copy) {
 	%args<listen> = %args<passive>;
+    %args<input-line-separator> = "\r\n";
 	nextsame(|%args);
 }
 
@@ -27,20 +28,40 @@ method readlist() {
 	@infos;
 }
 
+method readline() {
+    return self.getline();
+}
+
+method readlines() {
+    my @lines;
+
+    while my $line = self.readline() {
+        @lines.push: $line;
+    }
+
+    return @lines;
+}
+
+method readall(Bool :$bin? = False) {
+    my @infos;
+    my $left = Buf.new();
+
+    while (my $buf = self.recv(:bin)) {
+        if $bin {
+            @infos.push: $buf;
+        } else {
+            $left = merge($left, $buf);
+            for split($left, Buf.new(0x0d, 0x0a)) {
+                push @infos, $_.unpack("A*");
+            }
+        }
+    }
+
+    return $bin ?? @infos !! @infos;
+}
+
 method read(Bool :$bin? = False) {
-	my @infos;
-
-	while (my $buf = self.recv(:bin)) {
-		if $bin {
-			@infos.push: $buf;
-		} else {
-			for split($buf, Buf.new(0x0d, 0x0a)) {
-				push @infos, $_.unpack("A*");
-			}
-		}
-	}
-
-	return $bin ?? merge(@infos) !! ~(@infos.join());
+    return self.recv(:bin($bin.defined));
 }
 
 # vim: ft=perl6
