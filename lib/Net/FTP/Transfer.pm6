@@ -44,20 +44,12 @@ method readlines() {
 
 method readall(Bool :$bin? = False) {
     my @infos;
-    my $left = Buf.new();
 
-    while (my $buf = self.recv(:bin)) {
-        if $bin {
-            @infos.push: $buf;
-        } else {
-            $left = merge($left, $buf);
-            for split($left, Buf.new(0x0d, 0x0a)) {
-                push @infos, $_.unpack("A*");
-            }
-        }
+    while (my $buf = self.recv(:bin($bin))) {
+        @infos.push: $buf;
     }
 
-    return $bin ?? @infos !! @infos;
+    return @infos;
 }
 
 method read(Bool :$bin? = False) {

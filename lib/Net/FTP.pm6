@@ -297,18 +297,30 @@ method append(Str $path,
 method put(Str $path,
 		Str $remote-path? = "",
 		Str :$encoding? = "utf8", 
-		Bool :$binary? = False, 
+        Bool :$text? = False,
 		Bool :$unique? = False) {
 
-	my $content = read_file($path, $encoding, $binary);
+    my $content = read_file($path, $encoding, $text);
 
 	unless $content {
 		return FTP::FAIL;
 	}
 
-	return $unique ??  
-	self.stou($content, $remote-path ?? $remote-path !! $path ) !! 
-	self.stor($remote-path ?? $remote-path !! $path , $content);
+    my $remote;
+
+    if $remote-path {
+        my $remoteio = $remote-path.IO;
+
+        if $remoteio ~~ :d {
+            $remote = $remoteio.abspath() ~ '/' ~ $path.IO.basename();
+        } else {
+            $remote := $remote-path;
+        }
+    } else {
+        $remote := $path;
+    }
+
+    return $unique ?? self.stou($content, $remote ) !! self.stor($remote , $content);
 }
 
 method retr(Str $remote-path is copy, Bool :$binary? = False) {
@@ -319,14 +331,16 @@ method retr(Str $remote-path is copy, Bool :$binary? = False) {
 
 	$remote-path = $remote-path.subst("\n", "\0");
 	$!ftpc.cmd_retr($remote-path);
-	my $ret;
+    my @ret;
 
 	if self!handlecmd {
-		$ret = $binary ??
+        @ret = $binary ??
             $transfer.readall(:bin) !!
             $transfer.readall(); ## readall is slowly.
         $transfer.close();
-		self!handlecmd();
+        if self!handlecmd() {
+            return @ret;
+        }
     } else {
         $transfer.close();
     }
@@ -336,9 +350,9 @@ method retr(Str $remote-path is copy, Bool :$binary? = False) {
 
 method get(Str $remote-path, 
 		Str $local? = "",
-		Bool :$binary? = False,
+        Bool :$binary? = False,
 		Bool :$appened? = False) {
-	my $data = self.retr($remote-path, :binary($binary));
+    my $data = self.retr($remote-path, :binary($binary));
 
     unless $data {
 		return FTP::FAIL;
@@ -348,12 +362,12 @@ method get(Str $remote-path,
 		my $localio = $local.IO;
 		if $localio ~~ :d {
 			write_file($localio.abspath() ~ '/' ~ $remote-path.IO.basename(), 
-				$data, $appened);
+                $data, $appened, $binary);
 		} else {
-			write_file($localio.abspath(), $data, $appened);
+            write_file($localio.abspath(), $data, $appened, $binary);
 		}
 	} else {
-		write_file($remote-path, $data, $appened);
+        write_file($remote-path, $data, $appened, $binary);
 	}
 
 	return FTP::OK;
@@ -426,16 +440,16 @@ method !conn_transfer() {
 	}
 }
 
-sub read_file(Str $path, Str $encoding, Bool $bin) {
+sub read_file(Str $path, Str $encoding, Bool $text) {
 	my $fp = IO::Path.new($path);
 
 	unless $fp ~~ :e {
 		return FTP::FAIL;
 	}
 
-	my $fh = $fp.open(:r, :bin($bin));
+    my $fh = $fp.open(:r, :bin($text));
 
-	my $content = $bin ?? 
+    my $content = $text ??
 			$fh.slurp-rest(:bin) !!
 			 $fh.slurp-rest(:enc($encoding));
 
@@ -444,45 +458,25 @@ sub read_file(Str $path, Str $encoding, Bool $bin) {
 	return $content;
 }
 
-multi sub write_file(Str $path, Buf $data, Bool $append) {
-	my $fh = $append ?? 
-		$path.IO.open(:a) !! $path.IO.open(:w);
-
-	$fh.write($data);
-			
-	$fh.close();
-}
-
-multi sub write_file(Str $path, Str @data, Bool $append) {
+sub write_file(Str $path, @data, Bool $append, Bool $binary) {
     my $fh = $append ??
         $path.IO.open(:a) !! $path.IO.open(:w);
 
-    for @data {
-        $fh.print($_);
+    if $binary {
+        for @data {
+            $fh.write($_);
+        }
+    } else {
+        for @data {
+            for .lines {
+                $fh.say($_);
+            }
+        }
     }
 
     $fh.close();
 }
 
-multi sub write_file(Str $path, @data, Bool $append) {
-    my $fh = $append ??
-        $path.IO.open(:a) !! $path.IO.open(:w);
-
-    for @data {
-        $fh.write($_);
-    }
-
-    $fh.close();
-}
-
-multi sub write_file(Str $path, Str $data, Bool $append) {
-	my $fh = $append ?? 
-		$path.IO.open(:a) !! $path.IO.open(:w);
-
-	$fh.print($data);
-			
-	$fh.close();
-}
 
 =begin pod
 
