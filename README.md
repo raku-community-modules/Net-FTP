@@ -1,12 +1,12 @@
 # Net::FTP
 
-![Image of CI](https://travis-ci.org/araraloren/Net-Ftp.svg?branch=master)
+[![Build Status](https://travis-ci.org/araraloren/Net-FTP.svg?branch=master)](https://travis-ci.org/araraloren/Net-FTP)
 
 perl6 Net::FTP
 
 A simple ftp client module written in perl6.
 
-## USAGE
+## Usage
 
 ```Perl6
 use Net::FTP;
@@ -29,11 +29,16 @@ if $ftp.login() {
 }
 ```
 
+## Installation
+ 
+ install with panda
+ 
+ panda install Net::FTP
+ 
 ## WARNING
- - Net::FTP::Format 
- 	getyear(), gettimet(), not yet implement.
- - Net::FTP
- 	FTP only implemented passive mode.
+ - Net::FTP::Format - getyear(), gettimet(), not yet implement.
+ - Net::FTP - FTP only implemented passive mode.
+
 
 
 
