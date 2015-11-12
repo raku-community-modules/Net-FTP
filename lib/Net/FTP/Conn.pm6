@@ -37,6 +37,14 @@ method recv (:$bin?) {
     $bin ?? $!conn.recv(:bin) !! $!conn.recv();
 }
 
+method getline() {
+    $!conn.get();
+}
+
+method lines() {
+    $!conn.lines();
+}
+
 multi method send(Str $str) {
 	$!conn.print: $str;
 }
