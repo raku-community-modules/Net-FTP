@@ -125,7 +125,7 @@ method pwd() {
 
 method passive(Bool $passive?) {
 	if $passive {
-		$!passive = $passive;
+        $!passive = $passive;
 	}
 	return $!passive;
 }
@@ -638,13 +638,55 @@ Net::FTP is a ftp client class in perl6.
 
 =head2 pwd( --> Str | enum);
 
+    Get current directory.
+
+    CODE:
+        $ftp.pwd();
+
+    RETURN VALUE:
+        Current Directory - When success;
+        FTP::FAIL - When failed.
+
 =head2 passive([Bool $passive], --> Bool);
+    Get or set data connection will use passive mode.
+
+    CODE:
+        $ftp.passive(); #get passive mode status
+        $ftp.passive(True); #Then next data connection will use passive mode.
+
+    RETURN VALUE:
+        Passive mode status - When success;
+        FTP::FAIL - When failed.
 
 =head2 type(Net::FTP::Config::MODE $type, --> enum);
+    Set file transfer mode. MODE may be ASCII or BINARY.
+
+    CODE:
+        use Net::FTP::Config;
+        $ftp.type(MODE::ASCII); # set ASCII mode
+
+    RETURN VALUE:
+        FTP::OK	- When success;
+        FTP::FAIL - When failed.
 
 =head2 ascii( --> enum);
+    File transfer will use ASCII mode.
 
+    CODE:
+        $ftp.ascii();
+
+    RETURN VALUE:
+        FTP::OK	- When success;
+        FTP::FAIL - When failed.
 =head2 binary( --> enum);
+    File transfer will use BINARY mode.
+
+    CODE:
+        $ftp.binary();
+
+    RETURN VALUE:
+        FTP::OK	- When success;
+        FTP::FAIL - When failed.
 
 =head2 rest(Int $pos, --> enum);
 
