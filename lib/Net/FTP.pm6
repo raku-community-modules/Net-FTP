@@ -689,12 +689,52 @@ Net::FTP is a ftp client class in perl6.
         FTP::FAIL - When failed.
 
 =head2 rest(Int $pos, --> enum);
+    FTP server keeps track of a start postion for the client,
+    use rest request set the start postion.FTP server will use
+    the start postion when next file data transfer.
 
-=head2 list(Str $remote-path, --> Array[Hash]);
+    CODE:
+        $ftp.rest(100);
 
-=head2 ls(Str $remote-path, --> Array[Hash]);
+    RETURN VALUE:
+        FTP::OK	- When success;
+        FTP::FAIL - When failed.
 
-=head2 dir(Str $remote-path, --> Array[Hash]);
+=head2 list([Str $remote-path], --> Array[Hash]);
+    List the current directory or $remote-path files and subdirectories.
+    A directory contents may be like above:
+    | .
+    | ..
+    | samplefile.c
+    | sampledir
+    Result of list('./'):
+    (
+        {:name("."), :type(FILE::DIR)},
+        {:name(".."), :type(FILE::DIR)},
+        {:name("samplefile.c"), :type(FILE::NORMAL), :size(100)},
+        {:name("sampledir"), :type(FILE::DIR)}
+    )
+    These all hash's key:
+        name    => file name
+        link    => symbol link name
+        id      => file identification
+        type    => file type
+        size    => file size
+        time    => file last modify time
+
+    CODE:
+        $ftp.list(); # list current directory contents
+        $ftp.list('/somedir'); # list /somedir contents
+
+    RETURN VALUE:
+        Hash Array - When success;
+        FTP::FAIL - When failed.
+
+=head2 ls([Str $remote-path], --> Array[Hash]);
+    An alias of list([Str]);
+
+=head2 dir([Str $remote-path], --> Array[Hash]);
+    An alias of list([Str]);
 
 =head2 stor(Str $remote-path, Buf | Str $data, --> enum);
 

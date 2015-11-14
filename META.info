@@ -15,5 +15,5 @@
     },
     "depends" : [
     ],
-    "source-url" : "https://github.com/araraloren/Net-FTP/"
+    "source-url" : "git://github.com/araraloren/Net-FTP.git"
 }
