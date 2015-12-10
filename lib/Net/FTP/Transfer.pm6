@@ -8,12 +8,16 @@ unit class Net::FTP::Transfer is Net::FTP::Conn;
 
 has $.ascii;
 
-#	%args 
+#	%args
 #	host port passive ascii family encoding
-method new (*%args is copy) {
-	%args<listen> = %args<passive>;
+method new (*%args) {
+	%args<listen> = !%args<passive>;
     %args<input-line-separator> = "\r\n";
-	nextsame(|%args);
+	self.bless(|%args);
+}
+
+submethod BUILD(:$ascii) {
+	$!ascii = $ascii;
 }
 
 method readlist() {
@@ -43,7 +47,7 @@ method readlines() {
 }
 
 method readall(Bool :$bin? = False) {
-    my @infos;
+    my @infos;my $i = 0;
 
     while (my $buf = self.recv(:bin($bin))) {
         @infos.push: $buf;

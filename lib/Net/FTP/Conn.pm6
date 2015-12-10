@@ -5,24 +5,23 @@ unit class Net::FTP::Conn;
 has $.SOCKET;
 has $.host;
 has $.port;
-has $!conn;
+has $.conn;
 
 #	%args
 #	host port family encoding client
-method new (*%args is copy) {
-	unless %args<port> {
-		%args<port> = 21;
-	}
-	unless %args<SOCKET> {
-		%args<SOCKET> = IO::Socket::INET;
-	}
-	self.bless(|%args)!connect(|%args);
+method new (*%args) {
+	self.bless(|%args);
 }
 
-method !connect(*%args) {
-	$!conn = $!SOCKET.new(|%args);
+submethod BUILD(:$SOCKET = IO::Socket::INET,
+		:$host,
+		:$port = 21,
+		*%args) {
+	$!SOCKET	= $SOCKET;
+	$!host		= $host;
+	$!port 		= $port;
+	$!conn 		= $!SOCKET.new(:host($!host), :port($port), |%args);
 	fail("Connect failed!") unless $!conn ~~ $!SOCKET;
-	self;
 }
 
 multi method sendcmd(Str $cmd) {
@@ -50,11 +49,11 @@ multi method send(Str $str) {
 }
 
 multi method send(Buf $buf) {
-	$!conn.write: $buf;	
+	$!conn.write: $buf;
 }
 
 method close() {
-	$!conn.close(); 
+	$!conn.close();
 }
 
 method host() {

@@ -13,5 +13,8 @@ enum FILE is export <
 	NORMAL DIR LINK SOCKET PIPE CHAR BLOCK
 >;
 
+enum SOCKET_CLASS is export <
+	INET ASYNC SSL
+>;
 
 # vim: ft=perl6
