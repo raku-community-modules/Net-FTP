@@ -11,8 +11,12 @@ has Buf $!buff;
 
 #   %args
 #   host port family encoding debug
-method new (*%args is copy) { 
-    callsame(|%args);
+method new (*%args) {
+    self.bless(|%args);
+}
+
+submethod BUILD(:$debug = False) {
+    $!debug = $debug;
 }
 
 method cmd_conn() {
@@ -221,4 +225,3 @@ method dispatch($code) {
 }
 
 # vim: ft=perl6
-

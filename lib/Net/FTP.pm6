@@ -8,26 +8,35 @@ unit class Net::FTP;
 
 has Str $.user;
 has Str $.pass;
-has $.passive 	= False;
-has $.ascii 	= False;
-has $.family    = 2;
-has $.encoding  = "utf8";
+has $.passive;
+has $.ascii;
+has $.family;
+has $.encoding;
 has $!ftpc;
 has $!code;
 has $!msg;
 
-method new (*%args is copy) {
-	unless %args<family> {
-		%args<family> = 2;
-	}
-	unless %args<encoding> {
-		%args<encoding> = "utf8";
-	}
+method new (*%args) {
 	self.bless(|%args)!initialize(|%args);
+}
+
+submethod BUILD(Str :$user,
+		Str :$pass,
+		:$passive = False,
+		:$ascii = False,
+		:$family = 2,
+		:$encoding = 'utf8') {
+	$!user 		= $user;
+	$!pass 		= $pass;
+	$!passive	= $passive;
+	$!ascii		= $ascii;
+	$!family	= $family;
+	$!encoding 	= $encoding;
 }
 
 method !initialize(*%args) {
 	$!ftpc = Net::FTP::Control.new(|%args);
+	fail("Connect failed!") unless $!ftpc ~~ Net::FTP::Control;
 	self;
 }
 
@@ -118,7 +127,7 @@ method pwd() {
 	if self!handlecmd() {
 		if ($!msg ~~ /\"(.*)\"/) {
 			return ~$0;
-		}	
+		}
 	}
 	return FTP::FAIL;
 }
@@ -151,7 +160,7 @@ method type(MODE $t) {
 			}
 		}
 	}
-	
+
 	return FTP::OK;
 }
 
@@ -170,7 +179,7 @@ method rest(Int $pos) {
 
 method list(Str $remote-path?) {
 	my $transfer = self!conn_transfer();
-	
+
 	unless $transfer ~~ Net::FTP::Conn {
 		return FTP::FAIL;
 	}
@@ -236,7 +245,7 @@ method stou($data, Str $remote-path? is copy) {
 	if $remote-path {
 		$!ftpc.cmd_stou($remote-path);
 	} else {
-		$!ftpc.cmd_stou();	
+		$!ftpc.cmd_stou();
 	}
 	if self!handlecmd() {
 		if $!code == 250 {
@@ -283,7 +292,7 @@ method appe(Str $remote-path is copy, $data) {
 
 method append(Str $path,
 			Str $remote-path? = "",
-			Str :$encoding? = "utf8", 
+			Str :$encoding? = "utf8",
 			Bool :$binary? = False) {
 	my $content = read_file($path, $encoding, $binary);
 
@@ -296,7 +305,7 @@ method append(Str $path,
 
 method put(Str $path,
 		Str $remote-path? = "",
-		Str :$encoding? = "utf8", 
+		Str :$encoding? = "utf8",
         Bool :$text? = False,
 		Bool :$unique? = False) {
 
@@ -348,7 +357,7 @@ method retr(Str $remote-path is copy, Bool :$binary? = False) {
     return FTP::FAIL;
 }
 
-method get(Str $remote-path, 
+method get(Str $remote-path,
 		Str $local? = "",
         Bool :$binary? = False,
 		Bool :$appened? = False) {
@@ -361,7 +370,7 @@ method get(Str $remote-path,
 	if $local {
 		my $localio = $local.IO;
 		if $localio ~~ :d {
-			write_file($localio.abspath() ~ '/' ~ $remote-path.IO.basename(), 
+			write_file($localio.abspath() ~ '/' ~ $remote-path.IO.basename(),
                 $data, $appened, $binary);
 		} else {
             write_file($localio.abspath(), $data, $appened, $binary);
@@ -507,7 +516,7 @@ Net::FTP is a ftp client class in perl6.
 	CODE:
 		my $ftp = Net::FTP.new(:host<192.168.0.1>);
 
-	OPTIONS are passed in hash. If OPTIONS followed by a square brackets , '*' means optionals, 
+	OPTIONS are passed in hash. If OPTIONS followed by a square brackets , '*' means optionals,
 
 	other means has a default value.
 
@@ -535,8 +544,8 @@ Net::FTP is a ftp client class in perl6.
 
 =item3 pass[*]
 
-	Ftp user's password. If password is not given or a empty string, and the user is anonymous, anonymous@ will be 
-	the password of user. 
+	Ftp user's password. If password is not given or a empty string, and the user is anonymous, anonymous@ will be
+	the password of user.
 
 =item3 passive[False]
 
@@ -544,7 +553,7 @@ Net::FTP is a ftp client class in perl6.
 
 =item3 debug[False]
 
-	If debug is set, print debug infomation. Generally it is [+code, msg we receive from ftp server]. 
+	If debug is set, print debug infomation. Generally it is [+code, msg we receive from ftp server].
 
 =item3 SOCKET[IO::Socket::INET]
 
@@ -559,7 +568,7 @@ Net::FTP is a ftp client class in perl6.
 
 =head2 msg( --> Str);
 
-	Get the last respone msg from server. 
+	Get the last respone msg from server.
 
 	CODE:
 		say $ftp.msg();
@@ -567,7 +576,7 @@ Net::FTP is a ftp client class in perl6.
 =head2 login([Str $account], --> enum);
 
 	Login to remote ftp server. Some ftp server may be ask for a account.
-	
+
 	CODE:
 		$ftp.login();
 
@@ -598,7 +607,7 @@ Net::FTP is a ftp client class in perl6.
 		FTP::FAIL - When failed.
 
 =head2 cdup( --> enum);
-	
+
 	Change current directory to parent directory.
 
 	CODE:
@@ -763,6 +772,3 @@ Net::FTP is a ftp client class in perl6.
 =head2 syst( --> Str);
 
 =end pod
-
-
-
