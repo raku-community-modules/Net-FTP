@@ -104,7 +104,7 @@ method cdup() {
 method mkdir(Str $remote-path) {
 	$!ftpc.cmd_mkd($remote-path.subst("\n", "\0"));
 	if self!handlecmd() {
-		if $!code == 257 && ($!msg ~~ /\"(.*)\"/) {
+		if $!code == 257 && ($!msg ~~ /'"'(.*)'"'/) {
 			return ~$0;
 		} else {
 			return $remote-path;
@@ -125,7 +125,7 @@ method rmdir(Str $remote-path) {
 method pwd() {
 	$!ftpc.cmd_pwd();
 	if self!handlecmd() {
-		if ($!msg ~~ /\"(.*)\"/) {
+		if ($!msg ~~ /'"'(.*)'"'/) {
 			return ~$0;
 		}
 	}
@@ -445,7 +445,7 @@ method !conn_transfer() {
 			$transfer;
 		}
 	} else {
-
+		die("sorry, Not implement !!");
 	}
 }
 
