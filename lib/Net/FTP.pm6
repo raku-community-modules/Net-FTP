@@ -3,6 +3,7 @@ use Net::FTP::Conn;
 use Net::FTP::Control;
 use Net::FTP::Transfer;
 use Net::FTP::Config;
+use experimental :pack;
 
 unit class Net::FTP;
 

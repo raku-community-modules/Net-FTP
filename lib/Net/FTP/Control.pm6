@@ -2,6 +2,7 @@
 use Net::FTP::Buffer;
 use Net::FTP::Config;
 use Net::FTP::Conn;
+use experimental :pack;
 
 unit class Net::FTP::Control is Net::FTP::Conn;
 
