@@ -17,7 +17,7 @@ submethod BUILD(:$!SOCKET = IO::Socket::INET,
 				:$!host,
 				:$!port = 21,
 				*%args) {
-	$!conn = $!SOCKET.new(:host($!host), :port($port), |%args);
+	$!conn = $!SOCKET.new(:host($!host), :port($!port), |%args);
 	fail("Connect failed!") unless $!conn ~~ $!SOCKET;
 }
 
