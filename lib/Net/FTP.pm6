@@ -315,7 +315,7 @@ method put(Str $path,
         my $remoteio = $remote-path.IO;
 
         if $remoteio ~~ :d {
-            $remote = $remoteio.abspath() ~ '/' ~ $path.IO.basename();
+            $remote = $remoteio.absolute() ~ '/' ~ $path.IO.basename();
         } else {
             $remote := $remote-path;
         }
@@ -364,10 +364,10 @@ method get(Str $remote-path,
 	if $local {
 		my $localio = $local.IO;
 		if $localio ~~ :d {
-			write_file($localio.abspath() ~ '/' ~ $remote-path.IO.basename(),
+			write_file($localio.absolute() ~ '/' ~ $remote-path.IO.basename(),
                 $data, $appened, $binary);
 		} else {
-            write_file($localio.abspath(), $data, $appened, $binary);
+            write_file($localio.absolute(), $data, $appened, $binary);
 		}
 	} else {
         write_file($remote-path, $data, $appened, $binary);
