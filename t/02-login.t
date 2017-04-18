@@ -12,7 +12,7 @@ plan 5;
 my $host = '013.3vftp.com';
 my $ftp = Net::FTP.new(:host($host));
 
-ok($ftp.login() == 0, "ftp login failed");
+ok($ftp.login() == 1, "ftp login failed");
 
 $ftp = Net::FTP.new(:host('013.3vftp.com'),
 					 :user<ftptest138>,
