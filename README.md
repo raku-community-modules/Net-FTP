@@ -1,14 +1,12 @@
 # Net::FTP
 
-[![Build Status](https://travis-ci.org/araraloren/Net-FTP.svg?branch=master)](https://travis-ci.org/araraloren/Net-FTP)
+Net::FTP
 
-perl6 Net::FTP
-
-A simple ftp client module written in perl6.
+A simple ftp client module written in Raku.
 
 ## Usage
 
-```Perl6
+```raku
 use Net::FTP;
 use Net::FTP::Config;
 
@@ -44,5 +42,5 @@ if $ftp.login() {
  - FTP need bind a local port
 
 ## Problem
-Cause perl6 can not bind a local port to a socket, it's not easy to implement a ftp client according to the standard.
+Cause Raku can not bind a local port to a socket, it's not easy to implement a ftp client according to the standard.
 If anyone know more about this, please contact me with email: blackcatoverwall@gmail.com
