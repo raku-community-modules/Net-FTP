@@ -2,7 +2,7 @@
     "name" : "Net::FTP",
     "license" : "Artistic-2.0",
     "version" : "0.6.1",
-    "description" : "A ftp client written in perl6",
+    "description" : "A ftp client written in Raku",
     "author" : "loren",
     "provides" : {
         "Net::FTP" : "lib/Net/FTP.rakumod",
@@ -16,5 +16,5 @@
     },
     "depends" : [
     ],
-    "source-url" : "git://github.com/araraloren/Net-FTP.git"
+    "source-url" : "git://github.com/raku-community-modules/Net-FTP.git"
 }
